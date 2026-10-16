@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Csillagközi Műszak</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Exo+2:wght@400;600;800&display=swap&subset=latin-ext" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stars"></div>
+
+  <!-- ===================== LOBBI ===================== -->
+  <section id="screen-lobby" class="screen active">
+    <div class="lobby-scroll">
+      <header class="logo">
+        <div class="logo-small">5 FŐS KOOPERATÍV ŰR-KÁOSZ</div>
+        <h1>CSILLAGKÖZI<br><span>MŰSZAK</span></h1>
+      </header>
+
+      <div class="glass card">
+        <label class="lbl" for="in-name">Neved</label>
+        <input id="in-name" maxlength="14" placeholder="pl. Kapitány Kati" autocomplete="off">
+      </div>
+
+      <div class="glass card builder">
+        <div class="lbl">Avatar-építő</div>
+        <div class="builder-row">
+          <canvas id="preview" width="200" height="220"></canvas>
+          <div class="pickers">
+            <div class="picker" data-kind="head"><button class="arr" data-d="-1">‹</button><div class="pv"><small>Fejforma</small><b></b></div><button class="arr" data-d="1">›</button></div>
+            <div class="picker" data-kind="hat"><button class="arr" data-d="-1">‹</button><div class="pv"><small>Fejfedő</small><b></b></div><button class="arr" data-d="1">›</button></div>
+            <div class="picker" data-kind="face"><button class="arr" data-d="-1">‹</button><div class="pv"><small>Arc</small><b></b></div><button class="arr" data-d="1">›</button></div>
+          </div>
+        </div>
+        <div class="swatches" id="swatches"></div>
+        <button class="btn ghost small" id="btn-random">🎲 Véletlen bolondság</button>
+      </div>
+
+      <div class="glass card">
+        <div class="lbl">Hátizsák-eszközöd (mindenkinek egyedi!)</div>
+        <div class="tools" id="tools"></div>
+      </div>
+
+      <div class="glass card">
+        <div class="lbl">Legénység <span id="crew-count"></span></div>
+        <div class="crew" id="crew"></div>
+      </div>
+
+      <div class="glass card howto">
+        <div class="lbl">Hogyan kell játszani?</div>
+        <ul>
+          <li>🟡 <b>Sárga állomások</b>: bárki megcsinálhatja → pénz a <b>Közös Kasszába</b> + halad a hajó.</li>
+          <li>🚨 <b>Vak-Riasztás</b>: ha a TE eszközöd kell, te <b>nem látod</b> hol és milyen kóddal! A többiek látják – nekik kell <b>hangosan bekiabálni</b>.</li>
+          <li>💰 Egy közös kassza van. Költhetsz a csapatra… vagy <b>magadra</b>. Mindenki látni fogja. 💸</li>
+          <li>🤖 BÉLA-9000 időnként kvízel. Ne bukj el.</li>
+        </ul>
+      </div>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="lobby-cta">
+      <button class="btn primary big" id="btn-ready">KÉSZ VAGYOK</button>
+      <button class="btn primary big hidden" id="btn-join">🚀 BESZÁLLÁS A FUTÓ JÁTÉKBA</button>
+      <div class="cta-hint" id="ready-hint">Ha mindenki kész, 3 mp múlva indul.</div>
+    </div>
+  </section>
+
+  <!-- ===================== JÁTÉK ===================== -->
+  <section id="screen-game" class="screen">
+    <div id="hud" class="glass">
+      <div class="hud-bars">
+        <div class="bar-wrap">
+          <div class="bar-label"><span>🛡️ HAJÓ</span><span id="hp-text">100/100</span></div>
+          <div class="bar"><div id="hp-fill" class="fill hp"></div></div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-label"><span id="wave-text">1. HULLÁM</span><span id="prog-text">0%</span></div>
+          <div class="bar prog"><div id="prog-fill" class="fill prog"></div><i style="left:20%"></i><i style="left:40%"></i><i style="left:60%"></i><i style="left:80%"></i></div>
+        </div>
+      </div>
+      <div id="bank" class="bank"><small>KÖZÖS KASSZA</small><b><span id="bank-val">0</span> 💰</b></div>
+    </div>
+
+    <div id="stage">
+      <canvas id="game"></canvas>
+      <div id="alerts"></div>
+      <div id="status-chips"></div>
+      <div id="flash"></div>
+    </div>
+
+    <div id="controls" class="glass">
+      <div id="actions">
+        <button id="btn-action" class="act"><span class="ai">✋</span><span class="at">—</span></button>
+        <button id="btn-shop" class="shopbtn">🛒 FEJLESZTÉSEK</button>
+      </div>
+      <div id="backpack">
+        <button class="slot tool" id="slot-tool"><span class="em"></span><small>ESZKÖZ</small></button>
+        <div class="slot-row">
+          <button class="slot item" data-slot="0"><span class="em"></span></button>
+          <button class="slot item" data-slot="1"><span class="em"></span></button>
+        </div>
+      </div>
+      <div id="joy"><div id="joy-knob"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== VÉGE ===================== -->
+  <section id="screen-end" class="screen">
+    <div class="end-wrap">
+      <div id="end-title" class="end-title"></div>
+      <div id="end-sub" class="end-sub"></div>
+      <div class="glass card" id="end-stats"></div>
+      <div class="glass card"><div class="lbl">💸 Kassza-Fosztogatók Szégyenlistája</div><div id="end-shame"></div></div>
+      <button class="btn primary big" id="btn-restart">🔁 ÚJ KÖR (vissza a lobbiba)</button>
+    </div>
+  </section>
+
+  <!-- ===================== MODALOK ===================== -->
+  <div id="modal-task" class="modal">
+    <div class="sheet glass">
+      <div class="sheet-head"><div id="task-title"></div><button class="x" data-close>✕</button></div>
+      <div id="task-body"></div>
+    </div>
+  </div>
+
+  <div id="modal-code" class="modal">
+    <div class="sheet glass red">
+      <div class="sheet-head"><div id="code-title">🚨 VÉSZJAVÍTÁS</div><button class="x" data-close>✕</button></div>
+      <div class="code-hint">Kérdezd a csapatot: <b>mi a kód?</b> 🗣️</div>
+      <div class="code-display"><span id="code-color">SZÍN?</span><span>-</span><span id="code-num">__</span></div>
+      <div class="code-colors" id="code-colors"></div>
+      <div class="keypad" id="keypad"></div>
+      <div class="code-msg" id="code-msg"></div>
+      <button class="btn danger big" id="code-submit">🔧 JAVÍTÁS!</button>
+    </div>
+  </div>
+
+  <div id="modal-shop" class="modal">
+    <div class="sheet glass tall">
+      <div class="sheet-head"><div>🛒 FEJLESZTÉSEK <span class="shop-bank">💰 <b id="shop-bank">0</b></span></div><button class="x" data-close>✕</button></div>
+      <div class="tabs">
+        <button class="tab active" data-tab="self">😈 Önző (Saját)</button>
+        <button class="tab" data-tab="team">🤝 Csapat</button>
+      </div>
+      <div class="shop-warn" id="shop-warn"></div>
+      <div id="shop-list" class="shop-list"></div>
+      <div class="lbl" style="margin-top:12px">💸 Kassza-Fosztogatók Szégyenlistája</div>
+      <div id="shop-shame"></div>
+      <button class="btn ghost small" id="btn-surrender">🏳️ Küldetés feladása</button>
+    </div>
+  </div>
+
+  <div id="modal-quiz" class="modal quiz">
+    <div class="sheet glass bela">
+      <div class="bela-head">
+        <div class="bela-face"><i></i><i></i><b></b></div>
+        <div><div class="bela-name">BÉLA-9000</div><div class="bela-sub" id="quiz-sub">kérdez téged. Most. Azonnal.</div></div>
+      </div>
+      <div class="quiz-timer"><div id="quiz-timer-fill"></div></div>
+      <div class="quiz-q" id="quiz-q"></div>
+      <div class="quiz-opts" id="quiz-opts"></div>
+    </div>
+  </div>
+
+  <div id="pin-gate" class="overlay hidden">
+    <div class="pin-box glass">
+      <div class="logo-small">CSILLAGKÖZI MŰSZAK</div>
+      <div class="pin-title">🔒 Add meg a PIN-kódot</div>
+      <div class="pin-sub">A házigazdától kapod meg.</div>
+      <input id="pin-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••">
+      <div id="pin-msg" class="pin-msg"></div>
+      <button class="btn primary big" id="pin-submit">BELÉPÉS</button>
+    </div>
+  </div>
+
+  <div id="countdown" class="overlay hidden"><div id="countdown-num">3</div><small>FELKÉSZÜLNI A MŰSZAKRA!</small></div>
+  <div id="conn" class="hidden">📡 Újracsatlakozás…</div>
+  <div id="toasts"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="shared.js"></script>
+  <script src="avatar.js"></script>
+  <script src="minigames.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

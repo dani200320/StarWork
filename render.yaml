@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: csillagkozi-muszak
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/keepalive
+    envVars:
+      - key: GAME_PIN
+        sync: false   # Render asks for the value when you create the Blueprint
