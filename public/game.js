@@ -6,6 +6,15 @@
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Phosphor ikon HTML-ként (DOM) – a canvas a window.Icons glifákat használja.
+  const icon = (name, fill = true) => `<i class="${fill ? 'ph-fill' : 'ph'} ph-${name}" aria-hidden="true"></i>`;
+  // A CSS tokenekkel egyező színek a canvas-rajzoláshoz.
+  const COL = {
+    bg: '#0b0c0f', space: '#08090c', floor: '#15171c', corridor: '#111317', wall: '#2c2f37',
+    surface2: '#1b1d22', surface3: '#23252c', line: '#2a2c33', lineStrong: '#3a3d46',
+    text: '#ededf0', text2: '#a4a6b0', text3: '#70737e',
+    accent: '#ff7a2f', accentInk: '#1c0d03', danger: '#f2545b', dangerStrong: '#c9343c', ok: '#3fbf7f', gold: '#e9c25a',
+  };
   const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
 
   // ------------------------------------------------------------------ Tárolás
@@ -184,7 +193,7 @@
     if (d.locked) {
       msg.textContent = `Túl sok hibás próbálkozás. Várj ${Math.ceil(d.waitSec / 60)} percet!`;
     } else if (d.wrong) {
-      msg.textContent = 'Hibás PIN! Kérdezd meg a házigazdát. 🤔';
+      msg.textContent = 'Hibás PIN. Kérdezd meg a házigazdát.';
       store.set('cm_pin', '');
       $('.pin-box').classList.remove('shake'); void $('.pin-box').offsetWidth; $('.pin-box').classList.add('shake');
       vibrate([80, 40, 80]);
@@ -201,7 +210,7 @@
   $('#pin-submit').addEventListener('click', submitPin);
   $('#pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
   socket.on('disconnect', () => $('#conn').classList.remove('hidden'));
-  socket.on('kicked', () => { toast('📱 Egy másik fülön/eszközön folytatod a játékot.', 'bad'); socket.disconnect(); });
+  socket.on('kicked', () => { toast('Egy másik fülön vagy eszközön folytatod a játékot.', 'bad'); socket.disconnect(); });
 
   socket.on('welcome', d => {
     $('#pin-gate').classList.add('hidden');
@@ -211,8 +220,10 @@
     myInGame = you.inGame;
     if (d.isNew && profile) {
       // Szerver-újraindulás után visszaállítjuk a mentett profilt.
-      socket.emit('profile', { name: profile.name, avatar: profile.avatar, tool: profile.tool });
       lobbyAvatar = Object.assign({}, you.avatar, profile.avatar || {});
+      const li = S.AVATAR.legacyColors.indexOf(lobbyAvatar.color);
+      if (li >= 0) lobbyAvatar.color = S.AVATAR.colors[li];
+      socket.emit('profile', { name: profile.name, avatar: lobbyAvatar, tool: profile.tool });
       $('#in-name').value = profile.name || '';
     } else {
       lobbyAvatar = Object.assign({}, you.avatar);
@@ -287,7 +298,7 @@
   socket.on('ended', r => { lastResult = r; closeAllModals(); renderEnd(); });
 
   socket.on('toast', t => {
-    toast(t.text, t.kind);
+    toast(t.text, t.kind, t.icon);
     if (t.kind === 'good') SFX.success();
     if (t.kind === 'wave') { SFX.wave(); vibrate([60, 60, 60]); }
   });
@@ -296,7 +307,8 @@
     alertsDirty = true;
     snitches.push({
       id: Math.random(), until: performance.now() + 6500,
-      html: `💸 <b>ÁRULÁS!</b> ${esc(s.name)}${self ? ' (te 😈)' : ''} elköltött <b>${s.price} 💰</b>-t a Közös Kasszából a SAJÁT fejlesztésére: <b>${esc(s.upgrade)}</b>!`,
+      title: `${esc(s.name)}${self ? ' (te)' : ''} magára költött`,
+      sub: `${s.price} tallér a közösből: ${esc(s.upgrade)}`,
     });
     SFX.snitch(); vibrate([40, 30, 40]);
   });
@@ -307,39 +319,39 @@
     else { SFX.alarm(); vibrate(120); }
   });
   socket.on('fx', f => {
-    if (f.kind === 'money') floaters.push({ x: f.x, y: f.y - 30, text: f.text, t: 0, color: '#fde68a' });
+    if (f.kind === 'money') floaters.push({ x: f.x, y: f.y - 30, text: f.text, t: 0, color: COL.gold });
     if (f.kind === 'pickup') {
-      flights.push({ x: f.x, y: f.y, to: f.to, emoji: f.emoji, t: 0 });
-      floaters.push({ x: f.x, y: f.y - 20, text: f.text, t: 0, color: '#a5f3fc' });
+      flights.push({ x: f.x, y: f.y, to: f.to, icon: f.icon, t: 0 });
+      floaters.push({ x: f.x, y: f.y - 20, text: f.text, t: 0, color: COL.text });
       if (f.to === playerId) { SFX.coin(); vibrate(20); }
       pendingPickups.delete(f.id);
     }
     if (f.kind === 'meteor') {
-      burst(f.x, f.y, '#fb923c', 30); burst(f.x, f.y, '#fde68a', 14);
+      burst(f.x, f.y, COL.accent, 30); burst(f.x, f.y, COL.text, 12);
       if (f.hit.includes(playerId)) { shakeUntil = performance.now() + 500; flash(); SFX.boom(); vibrate([150, 50, 150]); }
       else if (Math.hypot(f.x - me.x, f.y - me.y) < 500) SFX.thud();
     }
     if (f.kind === 'rat') {
-      burst(f.x, f.y, '#fbbf24', 36);
-      floaters.push({ x: f.x, y: f.y - 30, text: f.text, t: 0, color: '#fde68a' });
+      burst(f.x, f.y, COL.gold, 30);
+      floaters.push({ x: f.x, y: f.y - 30, text: f.text, t: 0, color: COL.gold });
       SFX.success();
     }
   });
   socket.on('event', () => { SFX.chaos(); vibrate([80, 40, 80, 40, 200]); });
   socket.on('taskResult', r => {
-    toast(r.ok ? '✅ ' + r.msg : '😤 ' + r.msg, r.ok ? 'good' : 'bad');
+    toast(r.msg, r.ok ? 'good' : 'bad');
     if (r.ok) SFX.success();
   });
-  socket.on('buyResult', r => { if (!r.ok) toast('🚫 ' + r.msg, 'bad'); else SFX.coin(); });
+  socket.on('buyResult', r => { if (!r.ok) toast(r.msg, 'bad'); else SFX.coin(); });
   socket.on('emCheckResult', r => {
     if (r.ok) openCodeModal(r);
-    else { toast('🤷 ' + r.msg, 'info'); SFX.fail(); }
+    else { toast(r.msg, 'info', 'question'); SFX.fail(); }
   });
   socket.on('emCodeResult', r => {
     const m = $('#code-msg');
-    if (r.ok) { SFX.success(); vibrate([50, 50, 150]); closeModal('code'); toast('🦸 MEGJAVÍTVA! ' + r.msg, 'good'); return; }
+    if (r.ok) { SFX.success(); vibrate([50, 50, 150]); closeModal('code'); toast('Megjavítva. ' + r.msg, 'good', 'check-circle'); return; }
     m.textContent = r.msg; SFX.fail(); vibrate([80, 40, 80]);
-    $('.sheet.red').animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], { duration: 250 });
+    $('#code-sheet').animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], { duration: 250 });
     if (r.done) setTimeout(() => closeModal('code'), 900);
   });
   socket.on('quiz', q => openQuiz(q));
@@ -350,6 +362,7 @@
   function showScreen(name) {
     if (currentScreen === name) return;
     currentScreen = name;
+    document.body.dataset.screen = name;
     $$('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + name));
     if (name !== 'game') closeAllModals();
     if (name === 'end') renderEnd();
@@ -367,7 +380,17 @@
     const running = phase === 'playing' && !myInGame;
     $('#btn-ready').classList.toggle('hidden', running);
     $('#btn-join').classList.toggle('hidden', !running);
-    $('#ready-hint').textContent = running ? 'Épp megy egy kör – szállj be bármikor!' : 'Ha mindenki kész, 3 mp múlva indul.';
+    updateLobbyStatus();
+  }
+
+  // A lobbi alján: hányan vannak készen, és mi fog történni.
+  function updateLobbyStatus() {
+    if (!state) return;
+    const conn = state.players.filter(p => p.connected);
+    const readyN = conn.filter(p => p.ready).length;
+    const running = phase === 'playing' && !myInGame;
+    $('#ready-hint').textContent = running ? 'Épp megy egy kör, beszállhatsz.' : readyN === conn.length && conn.length ? 'Mindenki kész, indulunk!' : 'Indul, ha mindenki kész.';
+    $('#ready-count').textContent = running ? '' : `${readyN}/${conn.length} kész`;
   }
 
   // ------------------------------------------------------------------ Lobbi
@@ -386,29 +409,36 @@
     profileTimer = setTimeout(() => socket.emit('profile', Object.assign({ name: profile.name, avatar: lobbyAvatar }, extra || {})), 120);
   }
 
+  // Minden opció egyszerre látszik (vízszintesen görgethető csipek), nem kell nyilakkal lapozni.
   function renderLobbyStatic() {
-    $$('.picker').forEach(p => {
-      const list = KIND_LIST[p.dataset.kind];
-      const cur = list.find(x => x.id === lobbyAvatar[p.dataset.kind]) || list[0];
-      p.querySelector('b').textContent = cur.name;
+    $$('.chips[data-kind]').forEach(box => {
+      const kind = box.dataset.kind;
+      if (!box.childElementCount) {
+        KIND_LIST[kind].forEach(o => {
+          const b = document.createElement('button');
+          b.textContent = o.name; b.dataset.id = o.id;
+          b.onclick = () => { lobbyAvatar[kind] = o.id; SFX.click(); renderLobbyStatic(); pushProfile(); };
+          box.appendChild(b);
+        });
+      }
+      box.querySelectorAll('button').forEach(b => {
+        const on = b.dataset.id === lobbyAvatar[kind];
+        b.setAttribute('aria-pressed', String(on));
+        if (on && b._wasOff !== false && box.scrollWidth > box.clientWidth) box.scrollTo({ left: b.offsetLeft - 16, behavior: 'smooth' });
+        b._wasOff = !on;
+      });
     });
     const sw = $('#swatches');
-    sw.innerHTML = '';
-    S.AVATAR.colors.forEach(c => {
-      const b = document.createElement('button');
-      b.style.background = c; b.style.color = c;
-      if (c === lobbyAvatar.color) b.classList.add('sel');
-      b.onclick = () => { lobbyAvatar.color = c; SFX.click(); renderLobbyStatic(); pushProfile(); };
-      sw.appendChild(b);
-    });
+    if (!sw.childElementCount) {
+      S.AVATAR.colors.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.style.background = c; b.dataset.c = c; b.setAttribute('aria-label', `${i + 1}. szín`);
+        b.onclick = () => { lobbyAvatar.color = c; SFX.click(); renderLobbyStatic(); pushProfile(); };
+        sw.appendChild(b);
+      });
+    }
+    sw.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === lobbyAvatar.color)));
   }
-  $$('.picker .arr').forEach(btn => btn.addEventListener('click', () => {
-    const kind = btn.closest('.picker').dataset.kind;
-    const list = KIND_LIST[kind];
-    const i = list.findIndex(x => x.id === lobbyAvatar[kind]);
-    lobbyAvatar[kind] = list[(i + +btn.dataset.d + list.length) % list.length].id;
-    SFX.click(); renderLobbyStatic(); pushProfile();
-  }));
   $('#btn-random').onclick = () => {
     lobbyAvatar = { head: pick(S.AVATAR.heads).id, hat: pick(S.AVATAR.hats).id, face: pick(S.AVATAR.faces).id, color: pick(S.AVATAR.colors) };
     SFX.click(); renderLobbyStatic(); pushProfile();
@@ -419,8 +449,8 @@
   const FUN_NAMES = ['Kapitány Krumpli', 'Űr-Gizi', 'Béla Jr.', 'Galaktikus Gábor', 'Csillag-Csaba', 'Meteor Mari', 'Plazma Pisti', 'Nebula Nóri'];
   function updateReadyBtn() {
     const b = $('#btn-ready');
-    b.classList.toggle('on', ready);
-    b.textContent = ready ? '✅ KÉSZ! (koppints a visszavonáshoz)' : 'KÉSZ VAGYOK';
+    b.classList.toggle('is-done', ready);
+    b.innerHTML = ready ? `${icon('check-circle')}Kész, várunk a többiekre` : 'Kész vagyok';
   }
   $('#btn-ready').onclick = () => {
     if (!$('#in-name').value.trim()) { $('#in-name').value = pick(FUN_NAMES); pushProfile(); }
@@ -440,6 +470,7 @@
     if (!state) return;
     const mine = state.players.find(p => p.id === playerId);
     if (mine && !mine.ready && ready && phase === 'lobby') { ready = false; updateReadyBtn(); }
+    updateLobbyStatus();
     const key = JSON.stringify(state.players.map(p => [p.id, p.name, p.tool, p.ready, p.connected, p.avatar])) + phase;
     if (key === lobbyKey) return;
     lobbyKey = key;
@@ -451,9 +482,10 @@
       const owner = state.players.find(p => p.tool === t.id);
       const b = document.createElement('button');
       const isMine = owner && owner.id === playerId;
-      b.className = 'toolcard' + (isMine ? ' sel' : '') + (owner && !isMine ? ' taken' : '');
-      b.innerHTML = `<span class="em">${t.emoji}</span><small>${esc(t.name)}</small>${owner && !isMine ? `<span class="owner">${esc(owner.name || '…')}</span>` : ''}`;
-      b.onclick = () => { if (owner && !isMine) { toast('Ez már ' + (owner.name || 'valakié') + '!', 'bad'); return; } SFX.click(); pushProfile({ tool: t.id }); };
+      b.className = 'tool-row' + (owner && !isMine ? ' is-taken' : '');
+      b.setAttribute('aria-pressed', String(!!isMine));
+      b.innerHTML = `<span class="tool-icon">${icon(t.icon)}</span><span class="tool-name">${esc(t.name)}</span><span class="tool-meta">${isMine ? 'A tiéd' : owner ? esc(owner.name || 'Foglalt') : 'Szabad'}</span>`;
+      b.onclick = () => { if (owner && !isMine) { toast(`Ez már ${owner.name || 'valakié'}.`, 'info'); return; } SFX.click(); pushProfile({ tool: t.id }); };
       tools.appendChild(b);
     });
 
@@ -461,15 +493,15 @@
     const crew = $('#crew');
     crew.innerHTML = '';
     const list = state.players.slice().sort((a, b) => (b.connected - a.connected));
-    $('#crew-count').textContent = `(${list.filter(p => p.connected).length}/5)`;
+    $('#crew-count span').textContent = `${list.filter(p => p.connected).length}/5`;
     list.forEach(p => {
       const row = document.createElement('div');
       row.className = 'crew-row' + (p.connected ? '' : ' off');
       const t = S.toolById(p.tool);
       const cv = document.createElement('canvas'); cv.width = 80; cv.height = 88;
       row.appendChild(cv);
-      const st = phase === 'playing' ? (p.inGame ? 'JÁTSZIK' : 'LOBBI') : (p.ready ? 'KÉSZ' : 'VÁR…');
-      row.insertAdjacentHTML('beforeend', `<div class="nm">${esc(p.name || 'Névtelen űrlény')}${p.id === playerId ? ' (te)' : ''}<small>${t ? t.emoji + ' ' + esc(t.name) : 'nincs eszköz'}</small></div><div class="st ${p.ready || p.inGame ? 'ok' : ''}">${p.connected ? st : 'OFFLINE'}</div>`);
+      const st = !p.connected ? 'Offline' : phase === 'playing' ? (p.inGame ? 'Játszik' : 'Lobbiban') : (p.ready ? 'Kész' : 'Vár');
+      row.insertAdjacentHTML('beforeend', `<div class="nm">${esc(p.name || 'Névtelen űrlény')}${p.id === playerId ? ' (te)' : ''}<small>${t ? icon(t.icon, false) + esc(t.name) : 'nincs eszköz'}</small></div><div class="status ${p.connected && (p.ready || p.inGame) ? 'ok' : ''}">${st}</div>`);
       crew.appendChild(row);
       drawPreview(cv, p.avatar, 0.4);
     });
@@ -510,7 +542,7 @@
   if (window.ResizeObserver) new ResizeObserver(() => { if (currentScreen === 'game') resize(); }).observe(canvas);
   else window.addEventListener('resize', resize);
 
-  const STARS = Array.from({ length: 90 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: 0.05 + Math.random() * 0.35, s: Math.random() * 1.6 + 0.3, grp: i % 3 }));
+  const STARS = Array.from({ length: 70 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: 0.05 + Math.random() * 0.35, s: Math.random() * 1.6 + 0.3, grp: i % 3 }));
   const particles = [];
   const floaters = [];
   const flights = [];
@@ -561,7 +593,7 @@
 
   // ------------------------------------------------------------------ Mozgás
   let lastSend = 0, lastSentKey = '', bumpTime = 0, lastBumpBubble = 0;
-  const BUMP_TEXTS = ['Áú! 🤕', 'Ki tette ide ezt a falat?!', 'Bocs, fal!', 'Auu, az orrom! 👃', 'Ez fájt! 😵', 'Fal 1 – Én 0'];
+  const BUMP_TEXTS = ['Áú!', 'Ki tette ide ezt a falat?!', 'Bocs, fal!', 'Auu, az orrom!', 'Ez fájt!', 'Fal 1, én 0'];
   function sayBubble(text) { socket.emit('bubble', text); }
 
   function updateMe(dt, now) {
@@ -633,19 +665,19 @@
   function updateActionButton() {
     currentInteract = findInteract();
     const it = currentInteract;
-    let icon = '✋', text = '—', cls = '';
+    let ic = 'hand-tap', text = 'Nincs itt semmi', cls = '';
     if (it) {
-      if (it.kind === 'task') { const tt = S.TASK_TYPES.find(x => x.id === it.type); icon = tt.emoji; text = 'FELADAT'; cls = 'on'; }
-      if (it.kind === 'em') { icon = S.toolById(myTool()).emoji; text = 'HASZNÁL'; cls = 'on red'; }
-      if (it.kind === 'tele') { icon = '🌀'; text = 'TELEPORT'; cls = 'on blue'; }
-      if (it.kind === 'shop') { icon = '🛒'; text = 'BOLT'; cls = 'on blue'; }
+      if (it.kind === 'task') { const tt = S.TASK_TYPES.find(x => x.id === it.type); ic = tt.icon; text = 'Feladat'; cls = 'on'; }
+      if (it.kind === 'em') { ic = S.toolById(myTool()).icon; text = 'Javítás'; cls = 'on red'; }
+      if (it.kind === 'tele') { ic = 'arrows-in-simple'; text = 'Teleport'; cls = 'on'; }
+      if (it.kind === 'shop') { ic = 'storefront'; text = 'Bolt'; cls = 'on neutral'; }
     }
-    const key = icon + text + cls;
+    const key = ic + text + cls;
     if (key !== actKey) {
       actKey = key;
       const b = $('#btn-action');
       b.className = 'act ' + cls;
-      b.querySelector('.ai').textContent = icon;
+      b.querySelector('.ai').className = `ai ${cls ? 'ph-fill' : 'ph'} ph-${ic}`;
       b.querySelector('.at').textContent = text;
     }
   }
@@ -662,32 +694,32 @@
   $('#btn-action').addEventListener('click', doAction);
 
   function teleport(it) {
-    burst(me.x, me.y, '#22d3ee', 24);
+    burst(me.x, me.y, COL.accent, 24);
     me.x = it.to.x + (Math.random() - 0.5) * 30;
     me.y = it.to.y + 30 + (Math.random() - 0.5) * 10;
     if (!S.walkable(me.x, me.y)) { me.x = it.to.x; me.y = it.to.y + 30; }
     cam.x = me.x; cam.y = me.y;
-    burst(me.x, me.y, '#e879f9', 24);
+    burst(me.x, me.y, COL.text, 20);
     SFX.tele(); vibrate(40);
     lastSentKey = '';
-    toast('🌀 Teleport: ' + it.label, 'info');
+    toast('Teleport: ' + it.label, 'info', 'arrows-in-simple');
   }
 
   function useTool() {
-    if (!myTool()) { toast('Nincs eszköz a hátizsákodban 🤷', 'bad'); return; }
+    if (!myTool()) { toast('Nincs eszköz a hátizsákodban.', 'info'); return; }
     let best = null, bd = Infinity;
     for (const st of S.EMERGENCY_STATIONS) { const d = dist(st, me); if (d < bd) { bd = d; best = st; } }
     if (best && bd < S.INTERACT_RANGE + 20) { SFX.click(); socket.emit('emCheck', { stationId: best.id }); }
-    else { sayBubble('🤷 Nincs itt mit javítani…'); toast('Menj egy piros ⚠️ vész-állomáshoz – oda, ahová a csapat kiabál!', 'info'); }
+    else { sayBubble('Nincs itt mit javítani...'); toast('Menj egy piros vész-állomáshoz, oda, ahová a csapat küld.', 'info', 'siren'); }
   }
   $('#slot-tool').addEventListener('click', useTool);
 
   function useItem(i) {
-    if (!state || !state.me.items[i]) { toast('Ez a zseb üres. Szedj fel cuccot a padlóról! 🥤💣', 'info'); return; }
+    if (!state || !state.me.items[i]) { toast('Ez a zseb üres. Szedj fel valamit a padlóról.', 'info', 'backpack'); return; }
     socket.emit('useItem', i);
     SFX.click(); vibrate(25);
-    if (state.me.items[i] === 'drink') burst(me.x, me.y, '#fbbf24', 20);
-    if (state.me.items[i] === 'grenade') burst(me.x, me.y, '#a5f3fc', 30);
+    if (state.me.items[i] === 'drink') burst(me.x, me.y, COL.accent, 20);
+    if (state.me.items[i] === 'grenade') burst(me.x, me.y, '#a9c7ff', 28);
   }
   $$('.slot.item').forEach(b => b.addEventListener('click', () => useItem(+b.dataset.slot)));
 
@@ -726,34 +758,16 @@
     if (p.up && p.up.boots > 0) {
       const n = Math.min(3, p.up.boots);
       for (let i = 0; i < n; i++) {
-        particles.push({ x: x + (Math.random() - 0.5) * 14, y: y + 22, vx: (Math.random() - 0.5) * 30, vy: 20 + Math.random() * 40, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? '#fb923c' : color, size: 2 + Math.random() * 3 });
+        particles.push({ x: x + (Math.random() - 0.5) * 14, y: y + 22, vx: (Math.random() - 0.5) * 30, vy: 20 + Math.random() * 40, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? COL.accent : color, size: 2 + Math.random() * 3 });
       }
     }
-    if (boosted) particles.push({ x: x + (Math.random() - 0.5) * 20, y: y + (Math.random() - 0.5) * 30, vx: -p.dir * 160, vy: 0, life: 0.25, max: 0.25, color: '#fde68a', size: 1.5, line: true });
+    if (boosted) particles.push({ x: x + (Math.random() - 0.5) * 20, y: y + (Math.random() - 0.5) * 30, vx: -p.dir * 160, vy: 0, life: 0.25, max: 0.25, color: COL.text, size: 1.5, line: true });
   }
 
   // ------------------------------------------------------------------ Rajzolás
   // Teljesítmény: a statikus pályát EGYSZER rajzoljuk egy háttér-vászonra (mapLayer), és
-  // képkockánként csak a látható részét másoljuk át. A ragyogásokat előre renderelt
-  // sprite-okból rajzoljuk, és ami nem látszik a képernyőn, azt ki sem rajzoljuk.
-  const glowCache = new Map();
-  function glowSprite(color) {
-    let c = glowCache.get(color);
-    if (!c) {
-      c = document.createElement('canvas'); c.width = c.height = 64;
-      const g = c.getContext('2d');
-      const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32);
-      gr.addColorStop(0, hexA(color, 1)); gr.addColorStop(1, hexA(color, 0));
-      g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-      glowCache.set(color, c);
-    }
-    return c;
-  }
-  function glow(x, y, r, color, alpha) {
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
-    ctx.globalAlpha = 1;
-  }
+  // képkockánként csak a látható részét másoljuk át. Ami nem látszik a képernyőn,
+  // azt ki sem rajzoljuk.
 
   // Szöveg- és emoji-gyorsítótár: a canvas szövegrajzolása (főleg az emojiké) drága, ezért
   // minden feliratot egyszer rajzolunk ki egy kis vászonra, és utána csak azt másoljuk.
@@ -814,20 +828,32 @@
   // Ha a betűtípus később töltődik be, újrarajzoljuk a feliratokat.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { mapLayer = null; });
 
+  // Phosphor-ikon a canvasra (a betűtípus glifájából). Ha a betű még nem töltődött be,
+  // inkább nem rajzolunk semmit, mint hogy rossz (üres) képet tegyünk a gyorsítótárba.
+  const ICON_FONT = window.Icons.FONT;
+  let iconFontReady = false;
+  function iconReady() {
+    if (iconFontReady) return true;
+    if (document.fonts && document.fonts.check && document.fonts.check(`16px "${ICON_FONT}"`)) iconFontReady = true;
+    return iconFontReady;
+  }
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load(`16px "${ICON_FONT}"`).then(() => { iconFontReady = true; textCache.clear(); mapLayer = null; });
+  }
+  function glyph(name, x, y, size, color, k = 1) {
+    const ch = window.Icons.GLYPH[name];
+    if (!ch || !iconReady()) return;
+    drawText(ch, x, y, `${size}px "${ICON_FONT}"`, color, null, k);
+  }
+
   function drawStaticMap(g, tele) {
     const rectFill = (r, pad, color) => { g.fillStyle = color; g.fillRect(r.x - pad, r.y - pad, r.w + pad * 2, r.h + pad * 2); };
-    for (const r of S.ROOMS) rectFill(r, 16, hexA(r.color, 0.08));
-    for (const c of S.CORRIDORS) rectFill(c, 8, '#151d3d');
-    for (const r of S.ROOMS) rectFill(r, 6, hexA(r.color, 0.85));
-    for (const c of S.CORRIDORS) rectFill(c, 4, '#334477');
-    for (const c of S.CORRIDORS) rectFill(c, 0, '#0a0f22');
-    for (const r of S.ROOMS) {
-      const gr = g.createLinearGradient(r.x, r.y, r.x + r.w, r.y + r.h);
-      gr.addColorStop(0, '#111938'); gr.addColorStop(1, '#0b1029');
-      g.fillStyle = gr; g.fillRect(r.x, r.y, r.w, r.h);
-    }
+    // falak (kicsit nagyobb téglalapok), aztán a padló rá: így a közös körvonal marad meg
+    for (const r of S.WALKABLE) rectFill(r, 3, COL.wall);
+    for (const c of S.CORRIDORS) rectFill(c, 0, COL.corridor);
+    for (const r of S.ROOMS) rectFill(r, 0, COL.floor);
     // folyosó-csíkok
-    g.strokeStyle = 'rgba(100,140,255,0.12)'; g.lineWidth = 3; g.setLineDash([14, 16]);
+    g.strokeStyle = 'rgba(255,255,255,0.05)'; g.lineWidth = 2; g.setLineDash([12, 14]);
     for (const c of S.CORRIDORS) {
       g.beginPath();
       if (c.w > c.h) { g.moveTo(c.x + 40, c.y + c.h / 2); g.lineTo(c.x + c.w - 40, c.y + c.h / 2); }
@@ -836,64 +862,55 @@
     }
     g.setLineDash([]);
     // padló-rács
-    g.lineWidth = 1;
+    g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.028)';
+    g.beginPath();
     for (const r of S.ROOMS) {
-      g.strokeStyle = hexA(r.color, 0.07);
-      g.beginPath();
       for (let x = r.x + 40; x < r.x + r.w; x += 40) { g.moveTo(x, r.y); g.lineTo(x, r.y + r.h); }
       for (let y = r.y + 40; y < r.y + r.h; y += 40) { g.moveTo(r.x, y); g.lineTo(r.x + r.w, y); }
-      g.stroke();
     }
-    // Kantin asztalok
-    g.fillStyle = 'rgba(34,211,238,0.07)'; g.strokeStyle = 'rgba(34,211,238,0.25)'; g.lineWidth = 2;
+    g.stroke();
+    // díszletek: halvány, egyszínű körvonalak, hogy ne versenyezzenek az állomásokkal
+    const prop = 'rgba(255,255,255,0.07)', propFill = 'rgba(255,255,255,0.025)';
+    g.fillStyle = propFill; g.strokeStyle = prop; g.lineWidth = 2;
     for (const [x, y] of [[880, 760], [1010, 680], [1130, 640]]) {
       g.beginPath(); g.arc(x, y, 30, 0, 7); g.fill(); g.stroke();
       for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.5; g.beginPath(); g.arc(x + Math.cos(a) * 44, y + Math.sin(a) * 44, 8, 0, 7); g.stroke(); }
     }
-    // Híd: ablak + konzolok
-    g.fillStyle = '#04060f'; g.fillRect(820, 86, 300, 26);
-    g.fillStyle = 'rgba(167,139,250,0.18)';
-    for (let i = 0; i < 6; i++) g.fillRect(840 + i * 50, 200, 36, 22);
-    // Gépház hajtómű-gyűrűk
-    g.strokeStyle = 'rgba(251,146,60,0.4)';
+    g.fillStyle = COL.space; g.fillRect(820, 86, 300, 26);
+    g.fillStyle = propFill;
+    for (let i = 0; i < 6; i++) { g.fillRect(840 + i * 50, 200, 36, 22); g.strokeRect(840 + i * 50, 200, 36, 22); }
     for (const x of [900, 1000, 1100]) { g.beginPath(); g.arc(x, 1220, 26, 0, 7); g.stroke(); }
-    // Oxigén-Kert növények
-    for (const [x, y, r] of PLANTS) {
-      g.fillStyle = 'rgba(52,211,153,0.16)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
-      g.fillStyle = 'rgba(52,211,153,0.3)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.3, r * 0.45, 0, 7); g.fill();
-    }
-    // Labor ágyak + kereszt
-    g.strokeStyle = 'rgba(232,121,249,0.35)'; g.lineWidth = 2;
-    for (const y of [150, 240]) { g.strokeRect(220, y, 90, 44); g.fillStyle = 'rgba(232,121,249,0.12)'; g.fillRect(222, y + 2, 22, 40); }
-    g.fillStyle = 'rgba(232,121,249,0.25)';
-    g.fillRect(375, 205, 14, 44); g.fillRect(360, 220, 44, 14);
-    // Tétlen konzolok és lezárt teleport-padok: ezek sosem mozognak, ezért a rétegbe kerülnek;
-    // az aktív (világító) állomásokat képkockánként fölé rajzoljuk.
+    for (const [x, y, r] of PLANTS) { g.fillStyle = 'rgba(77,189,141,0.12)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+    for (const y of [150, 240]) { g.fillStyle = propFill; g.fillRect(220, y, 90, 44); g.strokeRect(220, y, 90, 44); }
+    g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(375, 205, 14, 44); g.fillRect(360, 220, 44, 14);
+    // Tétlen konzolok és lezárt teleport-padok (sosem mozognak, ezért a rétegben vannak);
+    // az aktív állomásokat képkockánként fölé rajzoljuk.
     const rr = window.Avatar.rr;
-    const consoleBox = (x, y, base) => {
-      g.fillStyle = base; g.strokeStyle = '#334155'; g.lineWidth = 2;
-      rr(g, x - 18, y - 14, 36, 28, 6); g.fill(); g.stroke();
-      g.fillStyle = 'rgba(148,163,184,0.12)'; rr(g, x - 13, y - 10, 26, 14, 3); g.fill();
+    const consoleBox = (x, y) => {
+      g.fillStyle = '#1d1f25'; g.strokeStyle = '#30333b'; g.lineWidth = 2;
+      rr(g, x - 18, y - 14, 36, 28, 7); g.fill(); g.stroke();
     };
-    for (const st of S.TASK_STATIONS) consoleBox(st.x, st.y, '#151b30');
-    g.font = '16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (const st of S.TASK_STATIONS) consoleBox(st.x, st.y);
+    const iconFont = iconReady();
+    g.textAlign = 'center'; g.textBaseline = 'middle';
     for (const st of S.EMERGENCY_STATIONS) {
-      consoleBox(st.x, st.y, '#1a0e16');
-      g.fillText('⚠️', st.x, st.y - 3);
-      g.strokeStyle = 'rgba(251,113,133,0.35)'; g.lineWidth = 2; g.strokeRect(st.x - 18, st.y - 14, 36, 28);
+      consoleBox(st.x, st.y);
+      if (iconFont) { g.font = `16px "${ICON_FONT}"`; g.fillStyle = 'rgba(242,84,91,0.45)'; g.fillText(window.Icons.GLYPH.warning, st.x, st.y); }
     }
     const unlocked = new Set(S.TELEPORT.levels[tele]);
     for (const room of Object.keys(S.TELEPORT.kantinPads)) {
       if (unlocked.has(room)) continue;
       const p = S.TELEPORT.kantinPads[room];
-      g.strokeStyle = 'rgba(34,211,238,0.18)'; g.lineWidth = 2; g.setLineDash([4, 5]);
+      g.strokeStyle = 'rgba(255,255,255,0.1)'; g.lineWidth = 2; g.setLineDash([4, 6]);
       g.beginPath(); g.arc(p.x, p.y, 22, 0, 7); g.stroke(); g.setLineDash([]);
-      g.globalAlpha = 0.4; g.font = '12px sans-serif'; g.fillText('🔒', p.x, p.y); g.globalAlpha = 1;
+      if (iconFont) { g.font = `13px "${ICON_FONT}"`; g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillText(window.Icons.GLYPH['lock-simple'], p.x, p.y); }
     }
-    // feliratok
-    g.font = '700 22px "Chakra Petch", sans-serif';
-    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    for (const r of S.ROOMS) { g.fillStyle = hexA(r.color, 0.75); g.fillText(r.name.toUpperCase(), r.x + 16, r.y + 32); }
+    // szobanevek: halvány szöveg + egy kis színjelölő (a kiabáláshoz kell, hogy felismerhetők legyenek)
+    g.font = '600 20px Geist, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    for (const r of S.ROOMS) {
+      g.fillStyle = hexA(r.color, 0.7); rr(g, r.x + 16, r.y + 18, 10, 10, 3); g.fill();
+      g.fillStyle = '#6b6e79'; g.fillText(r.name, r.x + 34, r.y + 24);
+    }
   }
   const PLANTS = [[1600, 620, 26], [1700, 600, 20], [1660, 700, 30], [1560, 800, 22], [1760, 820, 26], [1520, 690, 16]];
 
@@ -906,19 +923,22 @@
     drawLiveProps(t);
   }
 
-  // Csak az animált díszletek – és csak ha az adott szoba látszik.
+  // Csak az animált díszletek, és csak ha az adott szoba látszik.
   function drawLiveProps(t) {
     if (roomInView('hid')) {
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
       for (let i = 0; i < 18; i++) { const x = 820 + ((i * 67 + t * 40) % 300); ctx.fillRect(x, 90 + (i * 13) % 20, 2, 2); }
-      for (let i = 0; i < 6; i++) { ctx.fillStyle = Math.sin(t * 3 + i) > 0 ? '#a78bfa' : '#34d399'; ctx.fillRect(846 + i * 50, 206, 6, 6); }
+      for (let i = 0; i < 6; i++) { ctx.fillStyle = Math.sin(t * 2 + i) > 0 ? COL.ok : '#3a3d46'; ctx.fillRect(846 + i * 50, 207, 6, 6); }
     }
-    if (roomInView('gephaz')) for (const x of [900, 1000, 1100]) glow(x, 1220, 46, '#fb923c', 0.35 + Math.sin(t * 6 + x) * 0.1);
+    if (roomInView('gephaz')) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2;
+      for (const x of [900, 1000, 1100]) { ctx.beginPath(); ctx.arc(x, 1220, 26, t * 3 + x, t * 3 + x + 1.4); ctx.stroke(); }
+    }
     if (roomInView('reaktor')) {
-      const pr = 50 + Math.sin(t * 3) * 6;
-      glow(320, 760, pr + 30, '#fb7185', 0.55);
-      glow(320, 760, pr * 0.55, '#ffffff', 0.6);
-      ctx.strokeStyle = 'rgba(251,113,133,0.5)'; ctx.lineWidth = 3;
+      const pr = 34 + Math.sin(t * 2.4) * 4;
+      ctx.fillStyle = 'rgba(230,112,122,0.16)'; ctx.beginPath(); ctx.arc(320, 760, pr + 18, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(230,112,122,0.5)'; ctx.beginPath(); ctx.arc(320, 760, pr * 0.5, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(230,112,122,0.35)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(320, 760, 70, t, t + 4); ctx.stroke();
       ctx.beginPath(); ctx.arc(320, 760, 86, -t * 0.7, -t * 0.7 + 3); ctx.stroke();
     }
@@ -932,33 +952,35 @@
       for (const [p, label] of pads) {
         if (!inView(p.x, p.y, 50)) continue;
         ctx.save(); ctx.translate(p.x, p.y);
-        glow(0, 0, 34, '#22d3ee', 0.6);
-        ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 3;
-        ctx.rotate(t * 2);
-        for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, 0, 24, i * 2.1, i * 2.1 + 1.2); ctx.stroke(); }
-        ctx.rotate(-t * 2);
-        drawText('➜ ' + label.toUpperCase(), 0, -36, '700 11px "Chakra Petch"', '#a5f3fc');
+        ctx.fillStyle = 'rgba(255,122,47,0.12)'; ctx.beginPath(); ctx.arc(0, 0, 26, 0, 7); ctx.fill();
+        ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.5;
+        ctx.rotate(t * 1.5);
+        for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, 0, 22, i * 2.1, i * 2.1 + 1.3); ctx.stroke(); }
+        ctx.rotate(-t * 1.5);
+        drawText(label, 0, -38, '600 12px Geist, sans-serif', COL.text2);
         ctx.restore();
       }
     }
   }
 
-  function drawConsole(x, y, base, glowColor, t, emoji, pulse) {
+  // Aktív állomás: kitöltött doboz ikonnal. A narancs = itt tudsz csinálni valamit.
+  function drawConsole(x, y, fill, iconName, iconColor, ring, t) {
     ctx.save(); ctx.translate(x, y);
-    if (glowColor) glow(0, 0, 40 + (pulse ? Math.sin(t * 6) * 6 : 0), glowColor, 0.55);
-    ctx.fillStyle = base; ctx.strokeStyle = glowColor || '#334155'; ctx.lineWidth = 2;
-    window.Avatar.rr(ctx, -18, -14, 36, 28, 6); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = glowColor ? hexA(glowColor, 0.35) : 'rgba(148,163,184,0.12)';
-    window.Avatar.rr(ctx, -13, -10, 26, 14, 3); ctx.fill();
-    if (emoji) drawText(emoji, 0, -3, '16px sans-serif', '#000');
+    if (ring) {
+      const ph = (t * 0.9) % 1;
+      ctx.strokeStyle = hexA(ring, 0.7 * (1 - ph)); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 22 + ph * 18, 0, 7); ctx.stroke();
+    }
+    ctx.fillStyle = fill;
+    window.Avatar.rr(ctx, -18, -14, 36, 28, 7); ctx.fill();
+    if (iconName) glyph(iconName, 0, 0, 17, iconColor);
     ctx.restore();
   }
 
   function drawStations(t) {
-    // Bolt-terminál
     if (inView(S.TERMINAL.x, S.TERMINAL.y, 60)) {
-      drawConsole(S.TERMINAL.x, S.TERMINAL.y, '#2a0f3a', '#e879f9', t, '🛒', true);
-      drawText('FEJLESZTÉSEK', S.TERMINAL.x, S.TERMINAL.y + 26, '700 11px "Chakra Petch"', '#f5d0fe');
+      drawConsole(S.TERMINAL.x, S.TERMINAL.y, COL.text, 'storefront', COL.bg, null, t);
+      drawText('Bolt', S.TERMINAL.x, S.TERMINAL.y + 26, '600 12px Geist, sans-serif', COL.text2);
     }
 
     const active = new Map(state.tasks.map(x => [x.stationId, x]));
@@ -967,9 +989,7 @@
       const tk = active.get(st.id);
       if (tk) {
         const tt = S.TASK_TYPES.find(x => x.id === tk.type);
-        drawConsole(st.x, st.y, '#3a2c05', '#fbbf24', t, tt.emoji, true);
-        const by = st.y - 34 + Math.sin(t * 5) * 4;
-        drawText('!', st.x, by - 7, '700 20px "Chakra Petch"', '#fde047');
+        drawConsole(st.x, st.y, COL.accent, tt.icon, COL.accentInk, COL.accent, t);
       }
     }
 
@@ -978,49 +998,51 @@
     for (const st of S.EMERGENCY_STATIONS) {
       if (!inView(st.x, st.y, 80)) continue;
       const e = known.get(st.id);
-      if (e) {
-        const blink = Math.sin(t * 12) > 0;
-        drawConsole(st.x, st.y, '#3f0a14', blink ? '#fb7185' : '#be123c', t, e.tools.map(x => S.toolById(x).emoji).join(''), true);
-        // visszaszámláló gyűrű
-        const frac = leftNow(e.end) / e.duration;
-        ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(st.x, st.y, 30, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); ctx.stroke();
-        // kód
-        const col = S.CODE_COLORS.find(c => e.code.startsWith(c.id));
-        const sp = textSprite(e.code, '700 16px "Chakra Petch"', col ? col.css : '#fff');
-        const w = sp.w + 12;
-        ctx.fillStyle = 'rgba(0,0,0,0.75)'; window.Avatar.rr(ctx, st.x - w / 2, st.y - 62, w, 22, 6); ctx.fill();
-        ctx.drawImage(sp.c, st.x - sp.w / 2, st.y - 51 - sp.h / 2, sp.w, sp.h);
-      }
+      if (!e) continue;
+      drawConsole(st.x, st.y, COL.dangerStrong, e.tools.length === 1 ? S.toolById(e.tools[0]).icon : 'siren', '#fff', COL.danger, t);
+      // visszaszámláló gyűrű
+      const frac = leftNow(e.end) / e.duration;
+      ctx.strokeStyle = COL.danger; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(st.x, st.y, 28, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); ctx.stroke();
+      ctx.lineCap = 'butt';
+      // kód-címke
+      const col = S.CODE_COLORS.find(c => e.code.startsWith(c.id));
+      const sp = textSprite(e.code, '700 15px Geist, sans-serif', col ? col.css : COL.text);
+      const w = sp.w + 14;
+      ctx.fillStyle = '#2a1316'; window.Avatar.rr(ctx, st.x - w / 2, st.y - 64, w, 24, 8); ctx.fill();
+      ctx.strokeStyle = COL.dangerStrong; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.drawImage(sp.c, st.x - sp.w / 2, st.y - 52 - sp.h / 2, sp.w, sp.h);
     }
   }
 
+  const ITEM_STYLE = { drink: COL.accent, grenade: '#a9c7ff', coins: COL.gold, coin: COL.gold };
   function drawItems(t) {
     for (const it of state.items) {
       if (!inView(it.x, it.y, 30)) continue;
       const def = S.ITEMS[it.type];
-      const bob = Math.sin(t * 4 + it.x) * 4;
-      const big = it.type !== 'coin';
-      const col = it.type === 'drink' ? '#fbbf24' : it.type === 'grenade' ? '#a5f3fc' : '#fde047';
-      glow(it.x, it.y, big ? 26 : 16, col, 0.5);
-      drawText(def.emoji, it.x, it.y + bob - 4, (big ? 24 : 16) + 'px sans-serif', '#000');
+      const bob = Math.sin(t * 4 + it.x) * 3;
+      const r = it.type === 'coin' ? 11 : 15;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(it.x, it.y + r + 2, r * 0.8, 3, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = COL.surface3; ctx.beginPath(); ctx.arc(it.x, it.y + bob - 4, r, 0, 7); ctx.fill();
+      ctx.strokeStyle = COL.lineStrong; ctx.lineWidth = 1.5; ctx.stroke();
+      glyph(def.icon, it.x, it.y + bob - 4, r === 11 ? 13 : 17, ITEM_STYLE[it.type]);
     }
   }
 
   function drawBubble(x, y, text) {
     const res = spriteRes();
     const sp = cacheSprite('bubble|' + text + '|' + res.toFixed(2), () => {
-      const font = '700 13px "Exo 2", sans-serif';
+      const font = '600 13px Geist, sans-serif';
       measureCtx.font = font;
       const w = Math.ceil(Math.min(220, measureCtx.measureText(text).width + 16)), h = 32;
       const self = text.includes('ÖNZŐ');
       const c = document.createElement('canvas'); c.width = Math.ceil(w * res); c.height = Math.ceil(h * res);
       const g = c.getContext('2d'); g.scale(res, res);
-      g.fillStyle = self ? 'rgba(190,24,93,0.95)' : 'rgba(255,255,255,0.95)';
+      g.fillStyle = self ? COL.dangerStrong : COL.text;
       window.Avatar.rr(g, 0, 0, w, 24, 10); g.fill();
       g.beginPath(); g.moveTo(w / 2 - 6, 23); g.lineTo(w / 2 + 6, 23); g.lineTo(w / 2, 31); g.fill();
       g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = self ? '#fff' : '#0b1020';
+      g.fillStyle = self ? '#fff' : COL.bg;
       g.fillText(text, w / 2, 12.5, w - 8);
       return { c, w, h };
     });
@@ -1050,8 +1072,8 @@
       ctx.translate(L.x, L.y);
       if (!p.connected) ctx.globalAlpha = 0.35;
       if (L.self) {
-        ctx.strokeStyle = hexA(p.avatar.color, 0.6); ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.ellipse(0, 24, 22 + Math.sin(t * 4) * 2, 8, 0, 0, 7); ctx.stroke();
+        ctx.strokeStyle = 'rgba(237,237,240,0.55)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(0, 24, 22, 8, 0, 0, 7); ctx.stroke();
       }
       const animSpeed = boosted ? 1.6 : slimed ? 0.5 : 1 + (p.up.boots || 0) * 0.12;
       drawAvatar(ctx, p.avatar, { t: t + (p.id.charCodeAt(0) % 10), moving: L.moving, dir: L.dir, cape: p.up.cape > 0, vip: p.up.magnet, slime: slimed, animSpeed,
@@ -1059,18 +1081,18 @@
       ctx.restore();
       // név
       const big = p.up.cape > 0 ? 1.2 : 1;
-      const nm = (p.name || '???') + (p.connected ? '' : ' 💤');
-      drawText(nm, L.x, L.y + 42 * big - 4, '700 12px "Exo 2", sans-serif', L.self ? '#fff' : p.avatar.color, 'rgba(0,0,0,0.8)');
+      const nm = (p.name || '???') + (p.connected ? '' : ' (offline)');
+      drawText(nm, L.x, L.y + 42 * big - 4, '600 12px Geist, sans-serif', L.self ? COL.text : COL.text2, 'rgba(8,9,12,0.85)');
       if (p.bubble) drawBubble(L.x, L.y - 62 * big, p.bubble);
     }
   }
 
   function drawStars(t) {
-    ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, cw, ch);
-    // 3 csoportban pislognak: csoportonként egyszer állítunk átlátszóságot.
-    ctx.fillStyle = '#e6f6ff';
+    ctx.fillStyle = COL.space; ctx.fillRect(0, 0, cw, ch);
+    // 3 csoportban, halkan pislognak: csoportonként egyszer állítunk átlátszóságot.
+    ctx.fillStyle = '#c9ccd6';
     for (let grp = 0; grp < 3; grp++) {
-      ctx.globalAlpha = 0.4 + Math.sin(t * 2 + grp * 2.1) * 0.3;
+      ctx.globalAlpha = 0.28 + Math.sin(t * 0.8 + grp * 2.1) * 0.12;
       for (const s of STARS) {
         if (s.grp !== grp) continue;
         const x = ((s.x * cw - cam.x * s.z * scale) % cw + cw) % cw;
@@ -1084,9 +1106,9 @@
   function drawIndicators(t) {
     const pad = 22;
     const targets = [];
-    for (const tk of state.tasks) targets.push({ pos: S.TASK_STATIONS.find(s => s.id === tk.stationId), color: '#fbbf24', label: '!' });
-    for (const e of state.ems) if (!e.mine && e.stationId) targets.push({ pos: S.EMERGENCY_STATIONS.find(s => s.id === e.stationId), color: '#fb7185', label: '!' });
-    if (state.rat) targets.push({ pos: ratView, color: '#fbbf24', label: '🐀' });
+    for (const tk of state.tasks) targets.push({ pos: S.TASK_STATIONS.find(s => s.id === tk.stationId), color: COL.accent });
+    for (const e of state.ems) if (!e.mine && e.stationId) targets.push({ pos: S.EMERGENCY_STATIONS.find(s => s.id === e.stationId), color: COL.danger });
+    if (state.rat) targets.push({ pos: ratView, color: COL.gold });
     const topPad = 60;
     for (const tg of targets) {
       const sx = (tg.pos.x - cam.x) * scale + cw / 2, sy = (tg.pos.y - cam.y) * scale + ch / 2;
@@ -1098,12 +1120,9 @@
       const k = Math.min(kx, ky);
       const x = cx + Math.cos(ang) * k, y = Math.max(topPad - 10, cy + Math.sin(ang) * k);
       ctx.save(); ctx.translate(x, y);
-      ctx.globalAlpha = 0.7 + Math.sin(t * 6) * 0.3;
       ctx.fillStyle = tg.color;
       ctx.rotate(ang);
-      ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-6, -9); ctx.lineTo(-6, 9); ctx.closePath(); ctx.fill();
-      ctx.rotate(-ang);
-      drawText(tg.label, -Math.cos(ang) * 2, -Math.sin(ang) * 2, '700 12px sans-serif', '#000');
+      ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -8); ctx.lineTo(-3, 0); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
   }
@@ -1164,7 +1183,7 @@
       const target = f.to === playerId ? me : ents.get(f.to) || f;
       const x = f.x + (target.x - f.x) * f.t, y = f.y + (target.y - 10 - f.y) * f.t;
       ctx.globalAlpha = 1 - f.t * 0.5;
-      drawText(f.emoji, x, y - 7, '22px sans-serif', '#000');
+      glyph(f.icon, x, y - 7, 20, COL.gold);
       ctx.globalAlpha = 1;
     }
     // lebegő szövegek
@@ -1173,12 +1192,12 @@
       f.t += dt;
       if (f.t > 1.4) { floaters.splice(i, 1); continue; }
       ctx.globalAlpha = 1 - f.t / 1.4;
-      drawText(f.text, f.x, f.y - f.t * 40 - 6, '700 18px "Chakra Petch"', f.color, 'rgba(0,0,0,0.8)');
+      drawText(f.text, f.x, f.y - f.t * 40 - 6, '700 17px Geist, sans-serif', f.color, 'rgba(8,9,12,0.85)');
       ctx.globalAlpha = 1;
     }
     ctx.restore();
     if (ev === 'blackout') drawBlackout(t);
-    if (ev === 'gravity') { ctx.fillStyle = `rgba(124,58,237,${0.08 + Math.sin(t * 2) * 0.04})`; ctx.fillRect(0, 0, cw, ch); }
+    if (ev === 'gravity') { ctx.fillStyle = 'rgba(70,90,140,0.12)'; ctx.fillRect(0, 0, cw, ch); }
     drawIndicators(t);
   }
 
@@ -1191,15 +1210,15 @@
     for (const m of state.strikes) {
       if (!inView(m.x, m.y, m.r + 120)) continue;
       const frac = 1 - Math.max(0, leftNow(m.end)) / 2000;
-      ctx.fillStyle = `rgba(244,63,94,${0.12 + frac * 0.22})`;
+      ctx.fillStyle = `rgba(242,84,91,${0.08 + frac * 0.14})`;
       ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 7); ctx.fill();
-      ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = COL.danger; ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]);
       ctx.beginPath(); ctx.arc(m.x, m.y, m.r, t * 2, t * 2 + Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(253,186,116,0.55)';
+      ctx.fillStyle = 'rgba(242,84,91,0.3)';
       ctx.beginPath(); ctx.arc(m.x, m.y, m.r * frac, 0, 7); ctx.fill();
       // zuhanó meteor
       const hgt = (1 - frac) * 260;
-      drawText('☄️', m.x + hgt * 0.4, m.y - hgt, '42px sans-serif', '#000', null, (26 + frac * 16) / 42);
+      glyph('meteor', m.x + hgt * 0.4, m.y - hgt, 40, COL.text, (24 + frac * 14) / 40);
     }
   }
 
@@ -1212,13 +1231,26 @@
     ratView.x += dx * k; ratView.y += (state.rat.y - ratView.y) * k;
     const { x, y } = ratView;
     if (!inView(x, y, 60)) return;
-    glow(x, y, 46, '#fbbf24', 0.45);
-    ctx.save(); ctx.translate(x, y + Math.abs(Math.sin(t * 18)) * -4);
-    ctx.scale(-ratView.dir, 1);
-    drawText('🐀', 0, 0, '34px sans-serif', '#000');
+    ctx.save(); ctx.translate(x, y + Math.abs(Math.sin(t * 18)) * -3);
+    ctx.scale(ratView.dir, 1);
+    drawRatSprite(t);
     ctx.restore();
-    drawText('💰', x, y - 32 + Math.sin(t * 6) * 3, '18px sans-serif', '#000');
-    drawText(`${state.rat.stolen} 💰`, x, y + 30, '700 13px "Chakra Petch"', '#fde68a', 'rgba(0,0,0,0.8)');
+    glyph('coins', x, y - 30 + Math.sin(t * 6) * 2, 16, COL.gold);
+    drawText(`${state.rat.stolen}`, x, y + 28, '700 13px Geist, sans-serif', COL.gold, 'rgba(8,9,12,0.85)');
+  }
+
+  // Egyszerű, lapos patkány-figura (jobbra néz; tükrözéssel fordul meg).
+  function drawRatSprite(t) {
+    const tail = Math.sin(t * 14) * 4;
+    ctx.strokeStyle = '#c99aa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-14, 2); ctx.quadraticCurveTo(-26, 0 + tail, -32, -6 - tail); ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 11, 14, 3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#8d9099'; ctx.beginPath(); ctx.ellipse(-2, 0, 15, 9, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12, -2, 8, 6.5, -0.2, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d9a9ae'; ctx.beginPath(); ctx.arc(9, -8, 3.6, 0, 7); ctx.fill();
+    ctx.fillStyle = COL.bg; ctx.beginPath(); ctx.arc(15, -3.5, 1.4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d9a9ae'; ctx.beginPath(); ctx.arc(19.5, -1, 1.6, 0, 7); ctx.fill();
   }
 
   // Áramszünet: sötét köd, amibe a játékosok "zseblámpái" lyukat vágnak.
@@ -1273,23 +1305,24 @@
       const ratio = hp / state.maxHp;
       f.style.width = (ratio * 100) + '%';
       f.className = 'fill hp' + (ratio < 0.3 ? ' low' : ratio < 0.6 ? ' mid' : '');
-      hudEls.hpText.textContent = `${hp}/${state.maxHp}`;
+      hudEls.hpText.textContent = `${Math.round(ratio * 100)}%`;
       hudEls.prog.style.width = pct + '%';
-      hudEls.progText.textContent = pct + '% ÚT';
-      hudEls.wave.textContent = `🚀 ${state.wave}. HULLÁM`;
+      hudEls.progText.textContent = pct + '%';
+      hudEls.wave.textContent = `Hullám ${state.wave}/5`;
       hudEls.bank.textContent = state.bank;
     }
     // hátizsák
     const tool = S.toolById(myTool());
     const toolEl = hudEls.toolEm;
-    if (toolEl.textContent !== (tool ? tool.emoji : '—')) toolEl.textContent = tool ? tool.emoji : '—';
+    const toolKey = tool ? tool.icon : '';
+    if (toolEl.dataset.k !== toolKey) { toolEl.dataset.k = toolKey; toolEl.innerHTML = tool ? icon(tool.icon) : icon('prohibit', false); }
     const hot = state.ems.some(e => e.mine);
     if (hudEls.toolSlot.classList.contains('hot') !== hot) hudEls.toolSlot.classList.toggle('hot', hot);
     hudEls.items.forEach(b => {
       const it = state.me.items[+b.dataset.slot];
-      const em = it ? S.ITEMS[it].emoji : '';
+      const ik = it ? S.ITEMS[it].icon : '';
       const span = b.querySelector('.em');
-      if (span.textContent !== em) span.textContent = em;
+      if (span.dataset.k !== ik) { span.dataset.k = ik; span.innerHTML = it ? icon(ik) : ''; b.setAttribute('aria-label', it ? S.ITEMS[it].name : 'Üres zseb'); }
       if (b.classList.contains('full') !== !!it) b.classList.toggle('full', !!it);
     });
     // státusz chipek (csak másodpercenként változnak)
@@ -1297,8 +1330,8 @@
       prevChips = chipsKey;
       const chips = [];
       const bl = leftNow(state.me.boostEnd), sl = leftNow(state.me.slowEnd);
-      if (bl > 0) chips.push(`<span class="chip boost">🥤 TURBÓ ${Math.ceil(bl / 1000)}s</span>`);
-      if (sl > 0) chips.push(`<span class="chip slow">🟢 ŰR-NYÁLKA ${Math.ceil(sl / 1000)}s</span>`);
+      if (bl > 0) chips.push(`<span class="chip">${icon('lightning')}Turbó ${Math.ceil(bl / 1000)} mp</span>`);
+      if (sl > 0) chips.push(`<span class="chip slow">${icon('drop')}Űr-nyálka ${Math.ceil(sl / 1000)} mp</span>`);
       hudEls.chips.innerHTML = chips.join('');
     }
   }
@@ -1332,42 +1365,43 @@
     alertsDirty = false;
     const box = $('#alerts');
     const want = [];
+    const holderName = id => { const p = state.players.find(q => q.tool === id); return p ? esc(p.name) : '?'; };
     if (state.event) {
       const info = S.EVENTS[state.event.type];
-      want.push({ id: 'ev:' + state.event.type, cls: 'alert event', html: `${info.emoji} <b>${info.name}</b> – ${esc(info.desc)}`, sec: Math.ceil(leftNow(state.event.end) / 1000), frac: leftNow(state.event.end) / state.event.duration, end: state.event.end, dur: state.event.duration });
+      want.push({ id: 'ev:' + state.event.type, cls: 'alert event', icon: info.icon, title: info.name, sub: esc(info.desc), sec: Math.ceil(leftNow(state.event.end) / 1000), frac: leftNow(state.event.end) / state.event.duration, end: state.event.end, dur: state.event.duration });
     }
     for (const e of state.ems) {
       const sec = Math.ceil(leftNow(e.end) / 1000);
       const frac = leftNow(e.end) / e.duration;
-      const toolNames = e.tools.map(id => { const tl = S.toolById(id); return `${esc(tl.name.toUpperCase())} ${tl.emoji}`; }).join(' + ');
-      const title = e.kind === 'double' ? '🚨🚨 DUPLA RIASZTÁS' : '🚨 RIASZTÁS';
       if (e.mine) {
         const mineTool = S.toolById(myTool());
-        let html;
+        let title, sub;
         if (e.kind === 'double') {
           const otherId = e.tools.find(x => x !== myTool());
-          const other = S.toolById(otherId);
-          const op = state.players.find(p => p.tool === otherId);
-          html = `${title}! A te ${mineTool.emoji} eszközöd ÉS ${other.emoji} <b>${esc(op ? op.name : '???')}</b> kell <b>EGYSZERRE ugyanoda!</b> Hol? Kód? <b>KÉRDEZZÉTEK A CSAPATOT!</b>`;
+          title = `Dupla riasztás: te és ${holderName(otherId)}`;
+          sub = 'Egyszerre kell odamennetek. Kérdezzétek meg, hol.';
         } else {
-          html = `🚨 A TE ESZKÖZÖDRE VAN SZÜKSÉG: ${mineTool.emoji} <b>${esc(mineTool.name.toUpperCase())}</b>! Hol? Milyen kóddal? <b>KÉRDEZD A CSAPATOT!</b>`;
+          title = 'A te eszközöd kell';
+          sub = 'Hol és milyen kóddal? Kérdezd meg a többieket.';
         }
-        want.push({ id: e.id + ':m:' + myTool(), cls: 'alert mine', html, sec, frac, end: e.end, dur: e.duration });
+        want.push({ id: e.id + ':m:' + myTool(), cls: 'alert mine', icon: mineTool.icon, title, sub, sec, frac, end: e.end, dur: e.duration });
       } else {
         const room = S.roomById(e.room);
         const col = S.CODE_COLORS.find(c => e.code.startsWith(c.id));
-        let hint = '';
-        if (e.codeHint) hint = `<span class="hint">🔎 Osztott kód – ${esc(e.codeHint)}!</span>`;
-        if (e.kind === 'double') hint = '<span class="hint">👥 Mindkét eszköznek egyszerre kell ott lennie!</span>';
-        want.push({ id: e.id + ':o:' + e.code + (e.soloMine ? ':s' : ''), cls: 'alert', html: `${title} ${esc(room.where)}! Szükséges: <b>${toolNames}</b> | Kód: <span class="code" style="color:${col ? col.css : '#fff'}">${esc(e.code)}</span>${e.soloMine ? ' <i>(gyakorló mód: ez a tiéd!)</i>' : ''}${hint}`, sec, frac, end: e.end, dur: e.duration });
+        const need = e.tools.map(id => `${icon(S.toolById(id).icon, false)}${holderName(id)}`).join(' + ');
+        let sub = `Kell: ${need}`;
+        if (e.kind === 'double') sub += ', egyszerre';
+        if (e.codeHint) sub += `<br>Kód: ${esc(e.codeHint)}`;
+        if (e.soloMine) sub += ' (gyakorló mód)';
+        want.push({ id: e.id + ':o:' + e.code + (e.soloMine ? ':s' : ''), cls: 'alert danger', icon: 'siren', title: room.name + (e.kind === 'double' ? ', dupla riasztás' : ''), sub, code: e.code, codeColor: col ? col.css : COL.text, sec, frac, end: e.end, dur: e.duration });
       }
     }
     if (state.quizOn) {
       const qp = state.players.find(p => p.id === state.quizOn.playerId);
-      if (qp && qp.id !== playerId) want.push({ id: 'quiz', cls: 'alert quizinfo', html: `🤖 BÉLA-9000 vizsgáztat: <b>${esc(qp.name)}</b> – drukkoljatok!`, sec: Math.ceil(leftNow(state.quizOn.end) / 1000), end: state.quizOn.end });
+      if (qp && qp.id !== playerId) want.push({ id: 'quiz', cls: 'alert info', icon: 'robot', title: 'BÉLA vizsgáztat', sub: `${esc(qp.name)} válaszol, drukkoljatok.`, sec: Math.ceil(leftNow(state.quizOn.end) / 1000), end: state.quizOn.end });
     }
     for (let i = snitches.length - 1; i >= 0; i--) if (snitches[i].until < now) snitches.splice(i, 1);
-    for (const s of snitches) want.push({ id: 'sn' + s.id, cls: 'alert snitch', html: s.html });
+    for (const s of snitches) want.push({ id: 'sn' + s.id, cls: 'alert snitch', icon: 'hand-coins', title: s.title, sub: s.sub });
 
     const ids = new Set(want.map(w => w.id));
     for (const [id, el] of alertEls) if (!ids.has(id)) { el.remove(); alertEls.delete(id); }
@@ -1377,7 +1411,10 @@
       if (!el) {
         el = document.createElement('div');
         el.className = w.cls;
-        el.innerHTML = (w.sec != null ? '<span class="tm"></span>' : '') + w.html + (w.frac != null ? '<div class="tbar"></div>' : '');
+        el.innerHTML = `<div class="alert-icon">${icon(w.icon)}</div>`
+          + `<div class="alert-body"><div class="alert-title">${w.title}</div>${w.sub ? `<div class="alert-sub">${w.sub}</div>` : ''}</div>`
+          + `<div class="alert-side">${w.code ? `<span class="code" style="color:${w.codeColor}">${esc(w.code)}</span>` : ''}${w.sec != null ? '<span class="tm"></span>' : ''}</div>`
+          + (w.frac != null ? '<div class="tbar"></div>' : '');
         el._tm = el.querySelector('.tm'); el._bar = el.querySelector('.tbar'); el._frac = -1;
         alertEls.set(w.id, el);
         changedOrder = true;
@@ -1407,12 +1444,12 @@
   function closeAllModals() { Object.keys(modals).forEach(closeModal); }
   $$('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal').id.replace('modal-', ''))));
 
-  const FAIL_TEXTS = ['Ez nem az én napom… 😩', 'Na jó, ezt senki nem látta!', 'A kesztyűm volt a hibás!', 'Hupsz! 🙈', 'Mindjárt, csak bemelegítettem!'];
+  const FAIL_TEXTS = ['Ez nem az én napom...', 'Na jó, ezt senki nem látta!', 'A kesztyűm volt a hibás!', 'Hupsz!', 'Mindjárt, csak bemelegítettem!'];
   function openTask(it) {
     const tt = S.TASK_TYPES.find(x => x.id === it.type);
     const st = myState();
     const gloves = st ? st.up.gloves : 0;
-    $('#task-title').textContent = `${tt.emoji} ${tt.name.toUpperCase()}${gloves ? '  🧤' + gloves : ''}`;
+    $('#task-title').innerHTML = `${icon(tt.icon)}${esc(tt.name)}${gloves ? `<span class="sub">kesztyű ${gloves}. szint</span>` : ''}`;
     taskStation = it.stationId;
     openModal('task');
     taskCleanup = window.MiniGames.start(it.type, $('#task-body'), gloves, ok => {
@@ -1429,7 +1466,7 @@
     const cc = $('#code-colors');
     S.CODE_COLORS.forEach(c => {
       const b = document.createElement('button');
-      b.style.color = c.css; b.innerHTML = `<span>${c.id}</span>`;
+      b.dataset.c = c.id; b.innerHTML = `<span class="sym" style="--c:${c.css}"></span>${c.id[0] + c.id.slice(1).toLowerCase()}`;
       b.onclick = () => { codeColor = c.id; SFX.click(); renderCode(); };
       cc.appendChild(b);
     });
@@ -1437,7 +1474,9 @@
     kp.style.gridTemplateColumns = 'repeat(6, 1fr)';
     ['1', '2', '3', '4', '5', '⌫', '6', '7', '8', '9', '0', 'C'].forEach(k => {
       const b = document.createElement('button');
-      b.textContent = k;
+      if (k === '⌫') { b.innerHTML = icon('backspace', false); b.setAttribute('aria-label', 'Törlés'); }
+      else if (k === 'C') { b.innerHTML = icon('x', false); b.setAttribute('aria-label', 'Mindent töröl'); }
+      else b.textContent = k;
       b.onclick = () => {
         SFX.click();
         if (k === '⌫') codeNum = codeNum.slice(0, -1);
@@ -1448,25 +1487,24 @@
       kp.appendChild(b);
     });
     $('#code-submit').onclick = () => {
-      if (!codeColor || codeNum.length !== 2) { $('#code-msg').textContent = 'Válassz színt és írj be 2 számjegyet!'; return; }
+      if (!codeColor || codeNum.length !== 2) { $('#code-msg').textContent = 'Válassz színt, és írj be 2 számjegyet.'; return; }
       socket.emit('emCode', { stationId: codeStation, code: codeColor + '-' + codeNum });
     };
   })();
   function renderCode() {
     const c = S.CODE_COLORS.find(x => x.id === codeColor);
     const ce = $('#code-color');
-    ce.textContent = codeColor || 'SZÍN?';
-    ce.style.color = c ? c.css : '#64748b';
+    ce.textContent = codeColor || 'Szín';
+    ce.style.color = c ? c.css : COL.text3;
     $('#code-num').textContent = codeNum.padEnd(2, '_');
-    $$('#code-colors button').forEach(b => b.classList.toggle('sel', b.textContent === codeColor));
+    $$('#code-colors button').forEach(b => b.classList.toggle('sel', b.dataset.c === codeColor));
   }
   function openCodeModal(r) {
-    const tools = (r.tools || [r.tool]).map(id => S.toolById(id).emoji).join(' + ');
     codeStation = r.stationId; codeColor = null; codeNum = '';
-    $('#code-title').textContent = `🚨 ${tools} VÉSZJAVÍTÁS`;
-    $('.code-hint').innerHTML = r.kind === 'double'
-      ? 'DUPLA riasztás: a társadnak is <b>itt kell állnia</b>! Kód? 🗣️'
-      : 'Kérdezd a csapatot: <b>mi a kód?</b> 🗣️';
+    $('#code-title').innerHTML = `${icon('siren')}Vészjavítás`;
+    $('.code-hint').textContent = r.kind === 'double'
+      ? 'Dupla riasztás: a társadnak is itt kell állnia. Kérdezd meg a kódot.'
+      : 'Kérdezd meg a többieket, mi a kód.';
     $('#code-msg').textContent = '';
     renderCode();
     openModal('code');
@@ -1482,8 +1520,9 @@
     const now = performance.now();
     if (now - surrenderArmed < 3000) { socket.emit('surrender'); closeModal('shop'); return; }
     surrenderArmed = now;
-    e.target.textContent = '⚠️ Biztos? Koppints újra 3 mp-en belül!';
-    setTimeout(() => { e.target.textContent = '🏳️ Küldetés feladása'; }, 3000);
+    const btn = e.currentTarget;
+    btn.innerHTML = `${icon('warning', false)}Biztos? Koppints újra`;
+    setTimeout(() => { btn.innerHTML = `${icon('flag', false)}Küldetés feladása`; }, 3000);
   });
   function renderShop() {
     if (!state || !modals.shop.classList.contains('open')) return;
@@ -1494,8 +1533,8 @@
     shopKey = key;
     $('#shop-bank').textContent = state.bank;
     $('#shop-warn').textContent = shopTab === 'self'
-      ? '⚠️ Önző fejlesztés = a KÖZÖS kasszából fizetsz, és MINDENKI értesítést kap róla! 😈'
-      : '🤝 Ezek az egész legénységnek segítenek túlélni.';
+      ? 'A közös kasszából fizetsz, és mindenki értesítést kap róla.'
+      : 'Ezek az egész legénységnek segítenek.';
     const list = $('#shop-list');
     list.innerHTML = '';
     for (const [k, def] of Object.entries(S.UPGRADES)) {
@@ -1506,12 +1545,13 @@
       const row = document.createElement('div');
       row.className = 'upg';
       const dots = max > 1 ? `<div class="lv">${Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('')}</div>` : (lvl ? '<div class="lv"><i class="on"></i></div>' : '');
-      row.innerHTML = `<div class="ue">${def.emoji}</div><div class="ui"><div class="un">${esc(def.name)}${max > 1 ? ` <small style="color:#8b97c4">Lv ${lvl}/${max}</small>` : ''}</div><div class="ud">${esc(def.desc)}</div>${dots}</div>`;
+      row.innerHTML = `<div class="ue">${icon(def.icon)}</div><div class="ui"><div class="un">${esc(def.name)}</div><div class="ud">${esc(def.desc)}</div>${dots}</div>`;
       const b = document.createElement('button');
-      if (price == null) { b.className = 'buy max'; b.textContent = 'MAX'; b.disabled = true; }
+      if (price == null) { b.className = 'buy max'; b.textContent = 'Max'; b.disabled = true; }
       else {
-        b.className = 'buy ' + def.tab;
-        b.innerHTML = `${price} 💰`;
+        b.className = 'buy';
+        b.innerHTML = `${icon('coins')}${price}`;
+        b.setAttribute('aria-label', `Megveszem ${price} tallérért`);
         b.disabled = state.bank < price;
         b.onclick = () => socket.emit('buy', k);
       }
@@ -1523,8 +1563,8 @@
   function renderShame(el, players) {
     const sorted = players.slice().sort((a, b) => b.spentSelf - a.spentSelf);
     const worst = sorted[0] && sorted[0].spentSelf > 0 ? sorted[0].id : null;
-    el.innerHTML = `<div class="shame-row head"><span>JÁTÉKOS</span><span>💸 MAGÁRA</span><span>🤝 CSAPATRA</span></div>` +
-      sorted.map(p => `<div class="shame-row ${p.id === worst ? 'worst' : ''}"><span>${p.id === worst ? '🐷 ' : ''}${esc(p.name)}</span><span class="s">${p.spentSelf} 💰</span><span class="t">${p.spentTeam} 💰</span></div>`).join('');
+    el.innerHTML = `<div class="shame-row head"><span>Játékos</span><span>Magára</span><span>Csapatra</span></div>` +
+      sorted.map(p => `<div class="shame-row ${p.id === worst ? 'worst' : ''}"><span>${esc(p.name)}</span><span class="s">${p.spentSelf}</span><span class="t">${p.spentTeam}</span></div>`).join('');
   }
 
   // Kvíz
@@ -1532,7 +1572,7 @@
   function openQuiz(q) {
     quiz = { id: q.id, end: performance.now() + q.timeMs, total: q.timeMs, answered: false };
     $('#quiz-q').textContent = q.question;
-    $('#quiz-sub').textContent = `Helyes válasz: +${q.reward} 💰${q.filtered ? ` · 🤖 Szűrő: ${q.filtered} rossz válasz törölve` : ''}`;
+    $('#quiz-sub').textContent = `Jó válasz: +${q.reward} tallér.${q.filtered ? ` A szűrő ${q.filtered} rossz választ kivett.` : ''}`;
     const box = $('#quiz-opts');
     box.innerHTML = '';
     q.options.forEach((text, pos) => {
@@ -1572,35 +1612,40 @@
   function renderEnd() {
     const r = lastResult;
     if (!r) return;
-    const title = $('#end-title');
-    title.className = 'end-title ' + (r.win ? 'win' : 'lose');
-    title.innerHTML = r.win ? '🎉 MEGÉRKEZTETEK!' : '💥 A HAJÓ<br>FELROBBANT';
+    const badge = $('#end-badge');
+    badge.className = 'end-badge ' + (r.win ? 'win' : 'lose');
+    badge.innerHTML = icon(r.win ? 'flag-checkered' : 'skull');
+    $('#end-title').textContent = r.win ? 'Megérkeztetek' : 'A hajó felrobbant';
     const m = Math.floor(r.durationSec / 60), s = r.durationSec % 60;
     $('#end-sub').textContent = r.win
-      ? `A legénység túlélte a műszakot ${m}:${String(s).padStart(2, '0')} alatt. BÉLA-9000 büszke rátok (kicsit).`
-      : `${r.progress}%-ig jutottatok. BÉLA-9000 már írja a jegyzőkönyvet…`;
+      ? `A legénység ${m}:${String(s).padStart(2, '0')} alatt végigvitte a műszakot. BÉLA-9000 büszke rátok, egy kicsit.`
+      : `${r.progress}%-ig jutottatok. BÉLA-9000 már írja a jegyzőkönyvet.`;
     const st = r.stats;
     $('#end-stats').innerHTML = `<div class="stat-grid">
       <div class="stat"><b>${st.tasks}</b><small>feladat kész</small></div>
       <div class="stat"><b>${st.emFixed}/${st.emFixed + st.emFailed}</b><small>riasztás megmentve</small></div>
       <div class="stat"><b>${st.quizRight}/${st.quizRight + st.quizWrong}</b><small>BÉLA-kvíz helyes</small></div>
-      <div class="stat"><b>${st.earned} 💰</b><small>összes bevétel</small></div></div>`;
+      <div class="stat"><b>${st.earned}</b><small>tallér bevétel</small></div></div>`;
     renderShame($('#end-shame'), r.players);
     const greedy = r.players.slice().sort((a, b) => b.spentSelf - a.spentSelf)[0];
     const hero = r.players.slice().sort((a, b) => b.spentTeam - a.spentTeam)[0];
     let aw = '';
-    if (greedy && greedy.spentSelf > 0) aw += `<div class="award">🐷 Az est Kassza-Fosztogatója: <b>${esc(greedy.name)}</b> (${greedy.spentSelf} 💰 magára)</div>`;
-    if (hero && hero.spentTeam > 0) aw += `<div class="award">🦸 Csapatjátékos Díj: <b>${esc(hero.name)}</b> (${hero.spentTeam} 💰 a csapatra)</div>`;
-    $('#end-shame').insertAdjacentHTML('beforeend', aw);
+    if (greedy && greedy.spentSelf > 0) aw += `<div class="award greedy">${icon('hand-coins')}<div><b>${esc(greedy.name)}</b><small>Az est kassza-fosztogatója: ${greedy.spentSelf} tallér magára</small></div></div>`;
+    if (hero && hero.spentTeam > 0) aw += `<div class="award hero">${icon('users-three')}<div><b>${esc(hero.name)}</b><small>Csapatjátékos: ${hero.spentTeam} tallér a csapatra</small></div></div>`;
+    $('#end-awards').innerHTML = aw;
   }
   $('#btn-restart').addEventListener('click', () => { SFX.click(); socket.emit('restart'); });
 
   // ------------------------------------------------------------------ Toast
-  function toast(text, kind = 'info') {
+  const TOAST_ICON = { good: 'check-circle', bad: 'warning-circle', info: 'info', team: 'users-three', wave: 'waves', event: 'lightning' };
+  function toast(text, kind = 'info', ic) {
     const box = $('#toasts');
     const el = document.createElement('div');
     el.className = 'toast ' + kind;
-    el.textContent = text;
+    el.innerHTML = icon(ic || TOAST_ICON[kind] || 'info');
+    const span = document.createElement('span');
+    span.textContent = text;
+    el.appendChild(span);
     box.appendChild(el);
     while (box.children.length > 3) box.firstChild.remove();
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, kind === 'wave' ? 3500 : 3800);
@@ -1638,7 +1683,7 @@
       renderShop();
       updateQuizTimer(now);
       // A feladat közben valaki más megcsinálta?
-      if (taskStation && !state.tasks.some(x => x.stationId === taskStation)) { closeModal('task'); toast('😤 Valaki megelőzött ennél a feladatnál!', 'bad'); }
+      if (taskStation && !state.tasks.some(x => x.stationId === taskStation)) { closeModal('task'); toast('Valaki megelőzött ennél a feladatnál.', 'info'); }
       // A javítás közben lejárt / megoldódott a riasztás?
       if (codeStation && !state.ems.some(e => e.mine || e.soloMine)) { closeModal('code'); }
     }

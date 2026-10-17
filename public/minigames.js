@@ -1,5 +1,5 @@
 // A 8 interaktív feladat. MiniGames.start(type, el, gloves, done, wave) -> cleanup függvény.
-// gloves (0–3): könnyít (Bionikus Kesztyű); wave (1–5): nehezít.
+// gloves (0-3): könnyít (Bionikus Kesztyű); wave (1-5): nehezít.
 (function () {
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -12,7 +12,7 @@
       if (finished) return;
       finished = true;
       const m = el.querySelector('.mg-msg');
-      if (m) { m.textContent = text || (ok ? '✅ SIKER!' : '❌ HIBA!'); m.className = 'mg-msg ' + (ok ? 'ok' : 'bad'); }
+      if (m) { m.textContent = text || (ok ? 'Siker!' : 'Hiba!'); m.className = 'mg-msg ' + (ok ? 'ok' : 'bad'); }
       if (navigator.vibrate) navigator.vibrate(ok ? 40 : [80, 40, 80]);
       setTimeout(() => done(ok), ok ? 650 : 1000);
     };
@@ -21,7 +21,7 @@
   // 1. Kábel-Káosz -------------------------------------------------------
   function wires(el, g, d, done) {
     const n = clamp(4 + Math.floor(d / 2) - [0, 1, 1, 2][g], 2, 6);
-    const COLORS = shuffle(['#f43f5e', '#38bdf8', '#facc15', '#e879f9', '#34d399', '#fb923c']).slice(0, n);
+    const COLORS = shuffle(['#e6707a', '#4cc0d6', '#e3b94f', '#d47fd2', '#4dbd8d', '#e88b4d']).slice(0, n);
     const right = shuffle(COLORS.slice());
     const STEP = 46;
     el.innerHTML = `<div class="mg"><div class="mg-hint">Koppints egy bal oldali vezetékre, majd a jobb oldali párjára!</div>
@@ -55,13 +55,12 @@
           line.setAttribute('d', `M60 ${y1} C ${w / 2} ${y1}, ${w / 2} ${y2}, ${w - 60} ${y2}`);
           line.setAttribute('stroke', c); line.setAttribute('stroke-width', '8'); line.setAttribute('fill', 'none');
           line.setAttribute('stroke-linecap', 'round');
-          line.style.filter = `drop-shadow(0 0 6px ${c})`;
           svg.appendChild(line);
           sel.classList.add('done'); sel.classList.remove('sel'); b.classList.add('done');
           sel = null;
-          if (++connected === n) finish(true, '⚡ ÁRAM VAN!');
+          if (++connected === n) finish(true, 'Áram van!');
         } else {
-          finish(false, '💥 ZÁRLAT! Rossz szín!');
+          finish(false, 'Zárlat, rossz szín!');
         }
       };
     });
@@ -72,9 +71,9 @@
   function plasma(el, g, d, done) {
     const lo = Math.round(clamp(80 - g * 4 + d * 0.5, 50, 85)), hi = Math.round(clamp(90 + g * 3 - d * 0.5, lo + 4, 99));
     const rate = ([48, 38, 32, 26][g] || 48) * (1 + 0.08 * d);
-    el.innerHTML = `<div class="mg"><div class="mg-hint">Tartsd nyomva, és engedd el a <b style="color:#34d399">zöld zónában</b> (${lo}–${hi}%)!</div>
+    el.innerHTML = `<div class="mg"><div class="mg-hint">Tartsd nyomva, és engedd el a <b>zöld sávban</b> (${lo}-${hi}%).</div>
       <div class="plasma"><div class="tube"><div class="zone" style="bottom:${lo}%;height:${hi - lo}%"></div><div class="liq" style="height:0%"></div></div>
-      <button class="holdbtn">TARTSD<br>NYOMVA</button></div><div class="mg-msg"></div></div>`;
+      <button class="holdbtn">Tartsd<br>nyomva</button></div><div class="mg-msg"></div></div>`;
     const liq = el.querySelector('.liq');
     const btn = el.querySelector('.holdbtn');
     const finish = finisher(el, done);
@@ -83,7 +82,7 @@
       const dt = last ? (ts - last) / 1000 : 0; last = ts;
       if (holding) {
         v += rate * dt;
-        if (v >= 100) { v = 100; holding = false; btn.classList.remove('down'); finish(false, '💥 TÚLCSORDULT!'); }
+        if (v >= 100) { v = 100; holding = false; btn.classList.remove('down'); finish(false, 'Túlcsordult!'); }
       }
       liq.style.height = v + '%';
       raf = requestAnimationFrame(loop);
@@ -93,8 +92,8 @@
     const up = () => {
       if (!holding) return;
       holding = false; btn.classList.remove('down');
-      if (v >= lo && v <= hi) finish(true, `🧪 TÖKÉLETES! ${Math.round(v)}%`);
-      else finish(false, `${Math.round(v)}% – mellé!`);
+      if (v >= lo && v <= hi) finish(true, `Tökéletes, ${Math.round(v)}%`);
+      else finish(false, `${Math.round(v)}%, mellé!`);
     };
     btn.addEventListener('pointerup', up);
     btn.addEventListener('pointercancel', up);
@@ -117,7 +116,8 @@
       const a = rnd(0, Math.PI * 2), r = rnd(20, 95);
       const va = rnd(0, Math.PI * 2);
       const b = document.createElement('button');
-      b.className = 'asteroid'; b.textContent = '☄️';
+      b.className = 'asteroid'; b.innerHTML = '<i class="ph-fill ph-meteor"></i>';
+      b.setAttribute('aria-label', 'Aszteroida');
       b.style.fontSize = (30 + g * 5) + 'px';
       radar.appendChild(b);
       const rock = { x: R + Math.cos(a) * r, y: R + Math.sin(a) * r, vx: Math.cos(va) * spd, vy: Math.sin(va) * spd, el: b, alive: true };
@@ -126,7 +126,7 @@
         if (!rock.alive) return;
         rock.alive = false; b.classList.add('boom');
         if (navigator.vibrate) navigator.vibrate(15);
-        if (rocks.every(r => !r.alive)) finish(true, '🛡️ PAJZS TARTJA!');
+        if (rocks.every(r => !r.alive)) finish(true, 'A pajzs tart!');
       });
       rocks.push(rock);
     }
@@ -136,7 +136,7 @@
       const dt = last ? (ts - last) / 1000 : 0; last = ts;
       const left = 1 - (ts - start) / (time * 1000);
       bar.style.width = Math.max(0, left * 100) + '%';
-      if (left <= 0) { finish(false, '☄️ BECSAPÓDOTT!'); return; }
+      if (left <= 0) { finish(false, 'Becsapódott!'); return; }
       for (const r of rocks) {
         if (!r.alive) continue;
         r.x += r.vx * dt; r.y += r.vy * dt;
@@ -154,7 +154,7 @@
   function memory(el, g, d, done) {
     const steps = ([4, 3, 3, 3][g] || 4) + Math.floor(d / 2);
     const flash = ([520, 650, 750, 850][g] || 520) * (1 - 0.05 * d);
-    const COLS = ['#22d3ee', '#e879f9', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#a3e635', '#fb923c', '#38bdf8'];
+    const COLS = ['#4cc0d6', '#d47fd2', '#4dbd8d', '#e3b94f', '#e6707a', '#9b8ae0', '#9cc457', '#e88b4d', '#4c8fe0'];
     el.innerHTML = `<div class="mg"><div class="mg-hint" id="mm-hint">Figyeld a villanásokat…</div>
       <div class="matrix"></div><div class="mg-msg"></div></div>`;
     const grid = el.querySelector('.matrix');
@@ -174,8 +174,8 @@
       lit(i, 180);
       if (seq[idx] === i) {
         idx++;
-        if (idx === seq.length) { input = false; finish(true, '🧠 GÉNIUSZ!'); }
-      } else { input = false; finish(false, '🤯 Elfelejtetted!'); }
+        if (idx === seq.length) { input = false; finish(true, 'Zseni!'); }
+      } else { input = false; finish(false, 'Elfelejtetted!'); }
     }));
     return () => timers.forEach(clearTimeout);
   }
@@ -214,7 +214,7 @@
       return { tr, knob, label };
     });
     function check() {
-      if (vals.every((v, i) => Math.abs(v - targets[i]) <= tol)) finish(true, '〰️ SZINKRONBAN!');
+      if (vals.every((v, i) => Math.abs(v - targets[i]) <= tol)) finish(true, 'Szinkronban!');
     }
     function waveY(a, f, p, x) { return 110 + Math.sin(x / 600 * Math.PI * 2 * (1 + f / 25) + p / 100 * Math.PI * 2) * (15 + a * 0.8); }
     function render() {
@@ -227,10 +227,10 @@
       const draw = (v, col, w, dash) => {
         ctx.beginPath(); ctx.setLineDash(dash || []);
         for (let x = 0; x <= 600; x += 4) { const y = waveY(v[0], v[1], v[2], x); x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-        ctx.strokeStyle = col; ctx.lineWidth = w; ctx.shadowColor = col; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke();
       };
-      draw(targets, 'rgba(52,211,153,0.9)', 5, [12, 10]);
-      draw(vals, '#22d3ee', 4);
+      draw(targets, 'rgba(63,191,127,0.85)', 5, [12, 10]);
+      draw(vals, '#ededf0', 4);
       ctx.setLineDash([]);
     }
     render();
@@ -264,7 +264,7 @@
       b.addEventListener('pointerdown', e => {
         e.preventDefault();
         if (b.classList.contains('done')) return;
-        if (i !== next) { b.classList.add('wrong'); finish(false, '💫 Rossz csillag!'); return; }
+        if (i !== next) { b.classList.add('wrong'); finish(false, 'Rossz csillag!'); return; }
         b.classList.add('done'); b.classList.remove('hint');
         if (i > 0) {
           const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -272,7 +272,7 @@
           svg.appendChild(l);
         }
         next++;
-        if (next === n) { finish(true, '✨ CSILLAGKÉP KÉSZ!'); return; }
+        if (next === n) { finish(true, 'Kész a csillagkép!'); return; }
         if (g >= 1) btns[next].classList.add('hint');
       });
       field.appendChild(b);
@@ -283,7 +283,7 @@
     const loop = ts => {
       const left = 1 - (ts - start) / (time * 1000);
       bar.style.width = Math.max(0, left * 100) + '%';
-      if (left <= 0) { finish(false, '⌛ Elfogyott az idő!'); return; }
+      if (left <= 0) { finish(false, 'Elfogyott az idő!'); return; }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -292,7 +292,7 @@
 
   // 7. Kódtörő: Wordle-szerű, a jó helyen lévő szimbólumok zölden rögzülnek -
   function code(el, g, d, done) {
-    const SYMS = ['🔴', '🟢', '🔵', '🟡', '🟣'];
+    const SYMS = ['#e6707a', '#4dbd8d', '#4c8fe0', '#e3b94f', '#9b8ae0'].map(c => `<span class="sym" style="--c:${c}"></span>`);
     const P = d >= 2 ? 4 : 3;
     const K = d >= 3 ? 5 : 4;
     const syms = SYMS.slice(0, K);
@@ -300,10 +300,10 @@
     let tries = K + 1 + g;
     const cur = Array(P).fill(0);
     const locked = Array(P).fill(false);
-    el.innerHTML = `<div class="mg"><div class="mg-hint">Koppints a tárcsákra a szimbólum váltásához, majd PRÓBA. A <b style="color:#34d399">zöld</b> már jó helyen van!</div>
+    el.innerHTML = `<div class="mg"><div class="mg-hint">Koppints a tárcsákra a színváltáshoz, majd próbáld ki. A <b>zöld keretes</b> már jó helyen van.</div>
       <div class="guesses"></div><div class="dials"></div>
       <div class="tries"></div>
-      <button class="btn primary try-btn">🔓 PRÓBA</button><div class="mg-msg"></div></div>`;
+      <button class="btn btn-primary try-btn">Próba</button><div class="mg-msg"></div></div>`;
     const dials = el.querySelector('.dials');
     const hist = el.querySelector('.guesses');
     const triesEl = el.querySelector('.tries');
@@ -316,7 +316,7 @@
       return b;
     });
     function paint() {
-      dialBtns.forEach((b, i) => { b.textContent = syms[cur[i]]; b.classList.toggle('locked', locked[i]); });
+      dialBtns.forEach((b, i) => { b.innerHTML = syms[cur[i]]; b.classList.toggle('locked', locked[i]); });
       triesEl.textContent = `Hátralévő próbálkozás: ${tries}`;
     }
     el.querySelector('.try-btn').addEventListener('click', () => {
@@ -331,8 +331,8 @@
       });
       hist.appendChild(row);
       paint();
-      if (locked.every(Boolean)) finish(true, '🔓 FELTÖRVE!');
-      else if (tries <= 0) finish(false, '🔒 Lezárva! Kifogytál a próbákból.');
+      if (locked.every(Boolean)) finish(true, 'Feltörve!');
+      else if (tries <= 0) finish(false, 'Lezárva, elfogytak a próbák.');
     });
     paint();
     return () => {};
@@ -352,7 +352,7 @@
     const bar = el.querySelector('.mg-timer div');
     const prog = el.querySelector('.jprog div');
     const finish = finisher(el, done);
-    const COLS = ['#22d3ee', '#e879f9', '#fbbf24', '#34d399'];
+    const COLS = ['#4cc0d6', '#d47fd2', '#e3b94f', '#4dbd8d'];
     const bars = Array.from({ length: B }, (_, i) => {
       const b = h(`<button class="jbar"><div class="jband" style="bottom:${lo}%;height:${hi - lo}%"></div><div class="jfill"></div></button>`);
       b.style.setProperty('--c', COLS[i]);
@@ -379,8 +379,8 @@
       if (allIn) held += dt;
       prog.style.width = Math.min(100, held / need * 100) + '%';
       bar.style.width = Math.max(0, (1 - t / limit) * 100) + '%';
-      if (held >= need) { finish(true, '🤹 STABIL ENERGIA!'); return; }
-      if (t >= limit) { finish(false, '⚡ Túlterhelés!'); return; }
+      if (held >= need) { finish(true, 'Stabil az energia!'); return; }
+      if (t >= limit) { finish(false, 'Túlterhelés!'); return; }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

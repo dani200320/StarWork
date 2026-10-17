@@ -39,12 +39,12 @@ Keyboard (desktop testing): WASD/arrows to move, E/Space for action, Q for your 
 
 ## What happens in a round
 
-- **Tasks** (yellow): 8 mini-games (Kábel-Káosz, Plazma-Csapolás, Meteor-Pajzs, Memória-Mátrix, Hullám-Kalibrálás, Csillagtérkép, Kódtörő, Energia-Zsonglőr). They get harder every wave; the Bionikus Kesztyű makes them easier.
+- **Tasks** (orange stations): 8 mini-games (Kábel-Káosz, Plazma-Csapolás, Meteor-Pajzs, Memória-Mátrix, Hullám-Kalibrálás, Csillagtérkép, Kódtörő, Energia-Zsonglőr). They get harder every wave; the Bionikus Kesztyű makes them easier.
 - **Emergencies** (red), 3 kinds, needing 3+ players:
   - *normal*: everyone except the tool owner sees the room and code.
   - *split code*: one player sees only the color, another only the number.
   - *double* (from wave 2): two tools must be at the station at the same time.
-- **Chaos events** every ~45–80 s: 🔦 blackout, 🙃 flipped gravity, ☄️ meteor shower, 🐀 coin-stealing rat (catch it to get the money back +25), 🤖 BÉLA shuffles everyone's tools.
+- **Chaos events** every ~45-80 s: blackout, flipped gravity, meteor shower, a coin-stealing rat (catch it to get the money back +25), and BÉLA shuffling everyone's tools.
 
 ## Tuning
 
@@ -62,6 +62,8 @@ Shop prices are in `public/shared.js` → `UPGRADES`. Quiz questions are in `qui
 | `server.js` | Authoritative game loop: bank, HP, waves, tasks, emergencies, quiz, shop, per-player filtered state |
 | `quiz.js` | 46 BÉLA-9000 questions |
 | `public/shared.js` | Map, tools, upgrades, collision (shared by server and client) |
+| `public/icons.js` | Icon-font codepoints for drawing Phosphor icons on the canvas (generated from `@phosphor-icons/web`) |
+| `public/fonts/` | Self-hosted Geist variable font (OFL license included) |
 | `public/game.js` | Client: networking, lobby, canvas rendering, joystick, HUD, modals |
 | `public/avatar.js` | Avatar drawing (heads, hats, faces, wobble walk, cape, VIP aura) |
 | `public/minigames.js` | The 5 task mini-games |

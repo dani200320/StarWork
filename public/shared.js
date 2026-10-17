@@ -13,18 +13,18 @@
 
   // A folyosók 40 px-re belelógnak a szobákba, hogy az ütközésvizsgálat átjárható legyen.
   const CORRIDORS = [
-    { x: 940,  y: 340,  w: 120, h: 220 }, // Híd – Kantin
-    { x: 940,  y: 860,  w: 120, h: 220 }, // Kantin – Gépház
-    { x: 510,  y: 670,  w: 280, h: 110 }, // Reaktor – Kantin
-    { x: 1210, y: 650,  w: 280, h: 110 }, // Kantin – Oxigén
-    { x: 260,  y: 370,  w: 120, h: 230 }, // Labor – Reaktor
-    { x: 510,  y: 180,  w: 310, h: 110 }, // Labor – Híd
-    { x: 1180, y: 180,  w: 500, h: 110 }, // Híd – Oxigén (1)
-    { x: 1570, y: 180,  w: 110, h: 340 }, // Híd – Oxigén (2)
-    { x: 290,  y: 920,  w: 110, h: 340 }, // Reaktor – Gépház (1)
-    { x: 290,  y: 1150, w: 500, h: 110 }, // Reaktor – Gépház (2)
-    { x: 1600, y: 880,  w: 110, h: 380 }, // Oxigén – Gépház (1)
-    { x: 1210, y: 1150, w: 500, h: 110 }, // Oxigén – Gépház (2)
+    { x: 940,  y: 340,  w: 120, h: 220 }, // Híd - Kantin
+    { x: 940,  y: 860,  w: 120, h: 220 }, // Kantin - Gépház
+    { x: 510,  y: 670,  w: 280, h: 110 }, // Reaktor - Kantin
+    { x: 1210, y: 650,  w: 280, h: 110 }, // Kantin - Oxigén
+    { x: 260,  y: 370,  w: 120, h: 230 }, // Labor - Reaktor
+    { x: 510,  y: 180,  w: 310, h: 110 }, // Labor - Híd
+    { x: 1180, y: 180,  w: 500, h: 110 }, // Híd - Oxigén (1)
+    { x: 1570, y: 180,  w: 110, h: 340 }, // Híd - Oxigén (2)
+    { x: 290,  y: 920,  w: 110, h: 340 }, // Reaktor - Gépház (1)
+    { x: 290,  y: 1150, w: 500, h: 110 }, // Reaktor - Gépház (2)
+    { x: 1600, y: 880,  w: 110, h: 380 }, // Oxigén - Gépház (1)
+    { x: 1210, y: 1150, w: 500, h: 110 }, // Oxigén - Gépház (2)
   ];
 
   const WALKABLE = ROOMS.concat(CORRIDORS);
@@ -76,38 +76,38 @@
   };
 
   const TOOLS = [
-    { id: 'wrench',  emoji: '🔧', name: 'Kvantum-Csavarkulcs' },
-    { id: 'welder',  emoji: '🔥', name: 'Plazma-Hegesztő' },
-    { id: 'cryo',    emoji: '❄️', name: 'Krio-Fagyasztó Spray' },
-    { id: 'emp',     emoji: '⚡', name: 'EMP-Sokkoló' },
-    { id: 'plunger', emoji: '🪠', name: 'Hiper-WC Pumpa' },
+    { id: 'wrench',  icon: 'wrench',     name: 'Kvantum-Csavarkulcs' },
+    { id: 'welder',  icon: 'flame',      name: 'Plazma-Hegesztő' },
+    { id: 'cryo',    icon: 'snowflake',  name: 'Krio-Fagyasztó Spray' },
+    { id: 'emp',     icon: 'lightning',  name: 'EMP-Sokkoló' },
+    { id: 'plunger', icon: 'toilet',     name: 'Hiper-WC Pumpa' },
   ];
 
   const ITEMS = {
-    drink:   { emoji: '🥤', name: 'Turbó Energiaital', desc: '10 mp dupla sebesség' },
-    grenade: { emoji: '💣', name: 'Fagyasztó Gránát', desc: '+10 mp minden aktív riasztásra' },
-    coins:   { emoji: '💰', name: 'Bónusz Tallérok', desc: '+20 a Közös Kasszába' },
-    coin:    { emoji: '🪙', name: 'Űr-Tallér', desc: '+5 a Közös Kasszába' },
+    drink:   { icon: 'lightning-a', name: 'Turbó Energiaital', desc: '10 mp dupla sebesség' },
+    grenade: { icon: 'snowflake',   name: 'Fagyasztó Gránát', desc: '+10 mp minden aktív riasztásra' },
+    coins:   { icon: 'coins',       name: 'Bónusz Tallérok', desc: '+20 a Közös Kasszába' },
+    coin:    { icon: 'coin',        name: 'Űr-Tallér', desc: '+5 a Közös Kasszába' },
   };
 
   const TASK_TYPES = [
-    { id: 'wires',  name: 'Kábel-Káosz',       emoji: '🔌' },
-    { id: 'plasma', name: 'Plazma-Csapolás',   emoji: '🧪' },
-    { id: 'meteor', name: 'Meteor-Pajzs',      emoji: '☄️' },
-    { id: 'memory', name: 'Memória-Mátrix',    emoji: '🧠' },
-    { id: 'wave',   name: 'Hullám-Kalibrálás', emoji: '〰️' },
-    { id: 'stars',  name: 'Csillagtérkép',     emoji: '⭐' },
-    { id: 'code',   name: 'Kódtörő',           emoji: '🔐' },
-    { id: 'juggle', name: 'Energia-Zsonglőr',  emoji: '🤹' },
+    { id: 'wires',  name: 'Kábel-Káosz',       icon: 'plugs' },
+    { id: 'plasma', name: 'Plazma-Csapolás',   icon: 'flask' },
+    { id: 'meteor', name: 'Meteor-Pajzs',      icon: 'meteor' },
+    { id: 'memory', name: 'Memória-Mátrix',    icon: 'brain' },
+    { id: 'wave',   name: 'Hullám-Kalibrálás', icon: 'wave-sine' },
+    { id: 'stars',  name: 'Csillagtérkép',     icon: 'shooting-star' },
+    { id: 'code',   name: 'Kódtörő',           icon: 'lock-key' },
+    { id: 'juggle', name: 'Energia-Zsonglőr',  icon: 'battery-charging' },
   ];
 
   // Káosz-események: az egész hajót érintik ~20 mp-ig.
   const EVENTS = {
-    blackout: { emoji: '🔦', name: 'ÁRAMSZÜNET',           desc: 'Kialudtak a fények! Csak a zseblámpád világít.' },
-    gravity:  { emoji: '🙃', name: 'GRAVITÁCIÓS ANOMÁLIA', desc: 'Fordítva működik a joystick!' },
-    meteors:  { emoji: '☄️', name: 'METEORZÁPOR',          desc: 'Kerüld a piros köröket a padlón!' },
-    rat:      { emoji: '🐀', name: 'ŰRPATKÁNY',            desc: 'Egy patkány ellopta a kassza egy részét! Kapjátok el!' },
-    swap:     { emoji: '🤖', name: 'BÉLA MEGKERGÜLT',      desc: 'Összekeverte az eszközeiteket! Nézd meg, mi van most nálad!' },
+    blackout: { icon: 'flashlight',     name: 'Áramszünet',           desc: 'Csak a zseblámpád világít.' },
+    gravity:  { icon: 'arrows-down-up', name: 'Gravitációs anomália', desc: 'A joystick most fordítva működik.' },
+    meteors:  { icon: 'meteor',         name: 'Meteorzápor',          desc: 'Lépj ki a piros körökből!' },
+    rat:      { icon: 'coins',          name: 'Űrpatkány',            desc: 'Elvitte a kassza egy részét. Kapjátok el!' },
+    swap:     { icon: 'shuffle',        name: 'BÉLA megkergült',      desc: 'Összekeverte az eszközöket. Nézd meg, mi van nálad!' },
   };
 
   // A patkány útvonal-hálója (szobaközepek + folyosó-sarkok). Minden él végig járható.
@@ -125,14 +125,14 @@
   };
 
   const UPGRADES = {
-    boots:    { tab: 'self', emoji: '👟', name: 'Rakéta-Csizma',            desc: '+22% sebesség szintenként – CSAK NEKED. Neon lángcsóvával.', prices: [60, 90, 130, 180, 240] },
-    gloves:   { tab: 'self', emoji: '🧤', name: 'Bionikus Kesztyű',          desc: 'A te feladataid könnyebbek és rövidebbek lesznek.', prices: [80, 140, 220] },
-    magnet:   { tab: 'self', emoji: '🧲', name: 'Saját Pénz-Mágnes & VIP Aura', desc: 'Messziről magadhoz húzod a cuccokat + arany VIP ragyogás.', prices: [70, 120, 190] },
-    cape:     { tab: 'self', emoji: '👑', name: 'Arany „Főnök" Köpeny',      desc: 'Csillogó köpeny és +20% méret. Semmi haszna. Csak flex.', prices: [300] },
-    shield:   { tab: 'team', emoji: '🛡️', name: 'Nano-Pajzs & Hajótest Javítás', desc: '+20 max HP és azonnali +25% javítás.', prices: [100, 150, 210, 280, 360] },
-    dilator:  { tab: 'team', emoji: '⏳', name: 'Idő-Dilatátor',             desc: '+8 mp minden riasztás visszaszámlálására.', prices: [120, 200, 300] },
-    teleport: { tab: 'team', emoji: '🌀', name: 'Kantin-Teleportáló',        desc: 'Teleport padok a Kantinban a távoli szobákba (és vissza).', prices: [150, 250] },
-    bela:     { tab: 'team', emoji: '🤖', name: 'BÉLA-9000 Szűrő',           desc: '1–2 rossz válasz eltűnik a kvízben + dupla kvíz-jutalom.', prices: [120, 220] },
+    boots:    { tab: 'self', icon: 'sneaker-move', name: 'Rakéta-Csizma',            desc: '+22% sebesség szintenként, csak neked. Lángcsóvával.', prices: [60, 90, 130, 180, 240] },
+    gloves:   { tab: 'self', icon: 'hand', name: 'Bionikus Kesztyű',          desc: 'A te feladataid könnyebbek és rövidebbek lesznek.', prices: [80, 140, 220] },
+    magnet:   { tab: 'self', icon: 'magnet', name: 'Saját Pénz-Mágnes & VIP Aura', desc: 'Messziről magadhoz húzod a cuccokat, és arany aurád lesz.', prices: [70, 120, 190] },
+    cape:     { tab: 'self', icon: 'crown', name: 'Arany „Főnök" Köpeny',      desc: 'Csillogó köpeny és 20%-kal nagyobb méret. Semmi haszna.', prices: [300] },
+    shield:   { tab: 'team', icon: 'shield-check', name: 'Nano-Pajzs & Hajótest Javítás', desc: '+20 max HP és azonnal 25%-os javítás.', prices: [100, 150, 210, 280, 360] },
+    dilator:  { tab: 'team', icon: 'hourglass', name: 'Idő-Dilatátor',             desc: '+8 mp minden riasztás visszaszámlálására.', prices: [120, 200, 300] },
+    teleport: { tab: 'team', icon: 'arrows-in-simple', name: 'Kantin-Teleportáló',        desc: 'Teleport padok a Kantinban a távoli szobákba (és vissza).', prices: [150, 250] },
+    bela:     { tab: 'team', icon: 'robot', name: 'BÉLA-9000 Szűrő',           desc: '1-2 rossz válasz eltűnik a kvízben, és dupla a jutalom.', prices: [120, 220] },
   };
 
   const CODE_COLORS = [
@@ -167,7 +167,8 @@
       { id: 'scream',   name: 'Sikító száj' },
       { id: 'grin',     name: 'Vigyor' },
     ],
-    colors: ['#22d3ee', '#e879f9', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#a3e635', '#fb923c'],
+    colors: ['#4cc0d6', '#d47fd2', '#4dbd8d', '#e3b94f', '#e6707a', '#9b8ae0', '#9cc457', '#e88b4d'],
+    legacyColors: ['#22d3ee', '#e879f9', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#a3e635', '#fb923c'],
   };
 
   const PLAYER_RADIUS = 16;

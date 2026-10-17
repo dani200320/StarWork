@@ -104,6 +104,8 @@ app.get('/api/keepalive', (req, res) => {
   res.json({ ok: true, t: Date.now(), phase: game.phase, players: connectedPlayers().length });
 });
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: true }));
+// Saját hosztolású ikonok (Phosphor), külső CDN nélkül. A Geist betűtípus a public/fonts-ban van.
+app.use('/vendor/phosphor', express.static(path.join(__dirname, 'node_modules/@phosphor-icons/web/src'), { maxAge: '30d', immutable: true }));
 
 // ---------------------------------------------------------------------------
 // Segédfüggvények
@@ -268,7 +270,7 @@ function startGame() {
   game.nextCoinAt = now + 1000;
   game.nextTaskAt = now;
   crew.emit('started');
-  toast('🚀 INDUL A MŰSZAK! Csináljátok a sárga feladatokat, és kiabáljatok egymásnak a riasztásoknál!', 'good');
+  toast('Indul a műszak. Csináljátok a narancs feladatokat, és kiabáljatok a riasztásoknál!', 'good', { icon: 'rocket-launch' });
 }
 
 function endGame(win) {
@@ -329,7 +331,6 @@ function emergencyDurationSec() {
 
 const holderOf = tool => activePlayers().find(p => p.tool === tool);
 const nameOf = id => { const p = game.players.get(id); return p ? p.name : '???'; };
-const toolsText = tools => tools.map(t => S.toolById(t).emoji).join(' + ');
 
 // Három fajta riasztás:
 //  normal – egy eszköz, a többiek látják a teljes kódot
@@ -421,7 +422,7 @@ function startEvent(now) {
     const startNode = Object.keys(S.RAT_NODES).sort((a, b) => far(b) - far(a))[0];
     const n = S.RAT_NODES[startNode];
     game.rat = { x: n.x, y: n.y, cur: startNode, next: pick(n.n), stolen };
-    extra = ` (-${stolen} 💰)`;
+    extra = ` (-${stolen} tallér)`;
   }
 
   if (type === 'swap') {
@@ -432,7 +433,7 @@ function startEvent(now) {
     for (const em of game.emergencies) fixSeers(em);
   }
 
-  toast(`${info.emoji} ${info.name}! ${info.desc}${extra}`, 'event');
+  toast(`${info.name}! ${info.desc}${extra}`, 'event', { icon: info.icon });
   crew.emit('event', { type });
 }
 
@@ -446,10 +447,10 @@ function restoreSwap() {
 function endEvent(now) {
   const ev = game.event;
   if (!ev) return;
-  if (ev.type === 'swap') { restoreSwap(); toast('🤖 BÉLA megnyugodott – mindenki visszakapta a saját eszközét.', 'info'); }
-  if (ev.type === 'rat' && game.rat) toast(`🐀 A patkány elmenekült ${game.rat.stolen} 💰-val! 😭`, 'bad');
-  if (ev.type === 'blackout') toast('💡 Visszajött az áram!', 'info');
-  if (ev.type === 'gravity') toast('🧭 A gravitáció helyreállt.', 'info');
+  if (ev.type === 'swap') { restoreSwap(); toast('BÉLA megnyugodott. Mindenki visszakapta a saját eszközét.', 'info', { icon: 'robot' }); }
+  if (ev.type === 'rat' && game.rat) toast(`A patkány elmenekült ${game.rat.stolen} tallérral.`, 'bad');
+  if (ev.type === 'blackout') toast('Visszajött az áram.', 'info', { icon: 'lightbulb' });
+  if (ev.type === 'gravity') toast('A gravitáció helyreállt.', 'info', { icon: 'compass' });
   game.event = null;
   game.rat = null;
   game.strikes = [];
@@ -474,7 +475,7 @@ function updateMeteors(now) {
     for (const p of hits) {
       game.hp = Math.max(0, game.hp - Math.round(game.maxHp * CONFIG.METEOR_HP_PCT / 100));
       p.slowUntil = Math.max(p.slowUntil, now + 1500);
-      setBubble(p, pick(['🔥 AÚÚÚ!', '☄️ Telibe kaptam!', '😵 Csillagokat látok…']), 2000);
+      setBubble(p, pick(['AÚÚÚ!', 'Telibe kaptam!', 'Csillagokat látok...']), 2000);
       game.stats.meteorHits++;
     }
     crew.emit('fx', { kind: 'meteor', x: m.x, y: m.y, hit: hits.map(p => p.id) });
@@ -579,23 +580,23 @@ function resolveQuiz(correct, timeout) {
     const r = quizReward();
     addMoney(r, p);
     game.stats.quizRight++;
-    if (p) setBubble(p, '🧠 Okos vagyok!', 2500);
-    toast(`🤖 BÉLA-9000: ${name} helyesen válaszolt! +${r} 💰`, 'good', { money: r });
+    if (p) setBubble(p, 'Okos vagyok!', 2500);
+    toast(`BÉLA-9000: ${name} jól válaszolt. +${r} tallér`, 'good', { money: r, icon: 'robot' });
   } else {
     game.stats.quizWrong++;
     let penalty;
     if (game.bank >= CONFIG.QUIZ_BANK_PENALTY) {
       game.bank -= CONFIG.QUIZ_BANK_PENALTY;
-      penalty = `-${CONFIG.QUIZ_BANK_PENALTY} 💰`;
+      penalty = `-${CONFIG.QUIZ_BANK_PENALTY} tallér`;
     } else {
       damage(CONFIG.QUIZ_HP_PENALTY_PCT, 'quiz');
       penalty = `-${CONFIG.QUIZ_HP_PENALTY_PCT}% HP`;
     }
     if (p) {
       p.slowUntil = Date.now() + CONFIG.SLIME_MS;
-      setBubble(p, timeout ? '😴 Elaludtam...' : '🤡 Hupsz...', 3000);
+      setBubble(p, timeout ? 'Elaludtam...' : 'Hupsz...', 3000);
     }
-    toast(`🤖 BÉLA-9000: ${name} ${timeout ? 'kifutott az időből' : 'rosszul válaszolt'}! ${penalty} + űr-nyálka! (Helyes: ${right ? right.text : '?'})`, 'bad');
+    toast(`BÉLA-9000: ${name} ${timeout ? 'kifutott az időből' : 'rosszul válaszolt'}. ${penalty} és űr-nyálka. Helyes: ${right ? right.text : '?'}`, 'bad', { icon: 'robot' });
   }
   if (p && p.socketId) io.to(p.socketId).emit('quizResult', { correct, rightPos });
 }
@@ -629,8 +630,8 @@ function tick() {
     const wave = clamp(Math.floor(game.progress / 20) + 1, 1, 5);
     if (wave > game.wave) {
       game.wave = wave;
-      const msgs = ['', '', '🌊 2. HULLÁM! Mostantól DUPLA-ESZKÖZÖS riasztások is jöhetnek!', '🌊 3. HULLÁM! A feladatok egyre nehezebbek…', '🌊 4. HULLÁM! Két riasztás is jöhet egyszerre!', '🌊 5. HULLÁM! VÉGSŐ SZAKASZ – mindenki kiabáljon!'];
-      toast(msgs[wave], 'wave');
+      const msgs = ['', '', '2. hullám. Mostantól dupla-eszközös riasztások is jöhetnek.', '3. hullám. A feladatok egyre nehezebbek.', '4. hullám. Két riasztás is jöhet egyszerre.', '5. hullám. Végső szakasz, mindenki kiabáljon!'];
+      toast(msgs[wave], 'wave', { icon: 'waves' });
     }
 
     // Feladatok
@@ -646,8 +647,8 @@ function tick() {
         game.stats.emFailed++;
         damage(CONFIG.EMERGENCY_DAMAGE_PCT, 'emergency');
         const room = S.roomById(em.room);
-        for (const t of em.tools) { const h = holderOf(t); if (h) setBubble(h, '😱 Ezt elszúrtuk!', 3000); }
-        toast(`💥 A riasztás lejárt ${room.where.toLowerCase()} (${toolsText(em.tools)})! A hajó -${CONFIG.EMERGENCY_DAMAGE_PCT}% HP-t kapott!`, 'bad');
+        for (const t of em.tools) { const h = holderOf(t); if (h) setBubble(h, 'Ezt elszúrtuk!', 3000); }
+        toast(`Lejárt a riasztás ${room.where.toLowerCase()}. A hajó -${CONFIG.EMERGENCY_DAMAGE_PCT}% HP.`, 'bad', { icon: 'siren' });
       }
     }
 
@@ -863,7 +864,7 @@ io.on('connection', socket => {
     me.inGame = true;
     socket.emit('spawn', { x: me.x, y: me.y });
     socket.emit('started');
-    toast(`👋 ${me.name} beszállt a műszakba!`, 'info');
+    toast(`${me.name} beszállt a műszakba.`, 'info', { icon: 'user-plus' });
   });
 
   socket.on('move', d => {
@@ -890,7 +891,7 @@ io.on('connection', socket => {
   socket.on('taskDone', d => {
     if (!playing() || !d) return;
     const t = game.tasks.find(t => t.stationId === d.stationId);
-    if (!t) { socket.emit('taskResult', { ok: false, msg: 'Valaki gyorsabb volt! 😤' }); return; }
+    if (!t) { socket.emit('taskResult', { ok: false, msg: 'Valaki gyorsabb volt.' }); return; }
     const st = S.TASK_STATIONS.find(s => s.id === t.stationId);
     if (dist(st, me) > S.INTERACT_RANGE + 60) { socket.emit('taskResult', { ok: false, msg: 'Túl messze vagy!' }); return; }
     game.tasks = game.tasks.filter(x => x !== t);
@@ -898,9 +899,9 @@ io.on('connection', socket => {
     addMoney(CONFIG.TASK_REWARD, me);
     game.progress = Math.min(100, game.progress + CONFIG.TASK_PROGRESS);
     game.stats.tasks++;
-    setBubble(me, pick(['💪 Kész!', '😎 Profi vagyok', '✨ Easy', '🛠️ Megjavítva!']), 2000);
-    socket.emit('taskResult', { ok: true, msg: `+${CONFIG.TASK_REWARD} 💰  +${CONFIG.TASK_PROGRESS}% út` });
-    crew.emit('fx', { kind: 'money', x: st.x, y: st.y, text: `+${CONFIG.TASK_REWARD} 💰` });
+    setBubble(me, pick(['Kész!', 'Profi vagyok', 'Easy', 'Megjavítva!']), 2000);
+    socket.emit('taskResult', { ok: true, msg: `+${CONFIG.TASK_REWARD} tallér, +${CONFIG.TASK_PROGRESS}% út` });
+    crew.emit('fx', { kind: 'money', x: st.x, y: st.y, text: `+${CONFIG.TASK_REWARD}` });
   });
 
   socket.on('emCheck', d => {
@@ -912,8 +913,8 @@ io.on('connection', socket => {
     if (dist(st, me) > S.INTERACT_RANGE + 60) { socket.emit('emCheckResult', { ok: false, msg: 'Menj közelebb a piros állomáshoz!' }); return; }
     const em = game.emergencies.find(e => e.stationId === st.id && e.tools.includes(me.tool));
     if (!em) {
-      setBubble(me, '🤔 Itt nincs semmi baj...', 2000);
-      socket.emit('emCheckResult', { ok: false, msg: `Ennél az állomásnál most nincs dolga ennek: ${tool.emoji} ${tool.name}. Kérdezd a csapatot, hol kellesz!` });
+      setBubble(me, 'Itt nincs semmi baj...', 2000);
+      socket.emit('emCheckResult', { ok: false, msg: `Itt most nem kell a(z) ${tool.name}. Kérdezd meg a csapatot, hol kellesz.` });
       return;
     }
     socket.emit('emCheckResult', { ok: true, stationId: st.id, room: st.room, tool: me.tool, tools: em.tools, kind: em.kind });
@@ -929,14 +930,14 @@ io.on('connection', socket => {
       const missing = em.tools.filter(t => t !== me.tool).filter(t => { const h = holderOf(t); return !h || dist(st, h) > S.INTERACT_RANGE + 80; });
       if (missing.length) {
         const t = S.toolById(missing[0]), h = holderOf(missing[0]);
-        socket.emit('emCodeResult', { ok: false, msg: `Két eszköz kell EGYSZERRE! Hívd ide: ${t.emoji} ${h ? h.name : '???'}` });
+        socket.emit('emCodeResult', { ok: false, msg: `Két eszköz kell egyszerre. Hívd ide: ${h ? h.name : '???'} (${t.name})` });
         return;
       }
     }
     const code = String(d.code || '').toUpperCase().replace(/\s/g, '');
     if (code !== em.code) {
       em.expiresAt -= CONFIG.WRONG_CODE_PENALTY_SEC * 1000;
-      setBubble(me, '🙈 Rossz kód!', 2000);
+      setBubble(me, 'Rossz kód!', 2000);
       socket.emit('emCodeResult', { ok: false, msg: `Hibás kód! -${CONFIG.WRONG_CODE_PENALTY_SEC} mp` });
       return;
     }
@@ -945,11 +946,11 @@ io.on('connection', socket => {
     addMoney(reward, me);
     game.stats.emFixed++;
     const heroes = em.tools.map(holderOf).filter(Boolean);
-    for (const h of heroes) setBubble(h, '🦸 MEGMENTETTEM A HAJÓT!', 3000);
+    for (const h of heroes) setBubble(h, 'Megmentettem a hajót!', 3000);
     const room = S.roomById(em.room);
-    socket.emit('emCodeResult', { ok: true, done: true, msg: `+${reward} 💰` });
-    for (const h of heroes) if (h !== me && h.socketId) io.to(h.socketId).emit('emCodeResult', { ok: true, done: true, msg: `+${reward} 💰` });
-    toast(`✅ ${heroes.map(h => h.name).join(' és ')} megjavította a riasztást ${room.where.toLowerCase()} ${toolsText(em.tools)}! +${reward} 💰`, 'good', { money: reward });
+    socket.emit('emCodeResult', { ok: true, done: true, msg: `+${reward} tallér` });
+    for (const h of heroes) if (h !== me && h.socketId) io.to(h.socketId).emit('emCodeResult', { ok: true, done: true, msg: `+${reward} tallér` });
+    toast(`${heroes.map(h => h.name).join(' és ')} megjavította a riasztást ${room.where.toLowerCase()}. +${reward} tallér`, 'good', { money: reward, icon: 'check-circle' });
   });
 
   socket.on('catchRat', () => {
@@ -958,10 +959,10 @@ io.on('connection', socket => {
     const back = game.rat.stolen + CONFIG.RAT_BONUS;
     addMoney(back, me);
     game.stats.ratCaught++;
-    crew.emit('fx', { kind: 'rat', x: game.rat.x, y: game.rat.y, text: `+${back} 💰` });
+    crew.emit('fx', { kind: 'rat', x: game.rat.x, y: game.rat.y, text: `+${back}` });
     game.rat = null;
-    setBubble(me, '🐀 MEGVAGY!', 2500);
-    toast(`🐀 ${me.name} elkapta a patkányt! Visszaszerezve: ${back} 💰 (+${CONFIG.RAT_BONUS} jutalom)`, 'good', { money: back });
+    setBubble(me, 'Megvagy!', 2500);
+    toast(`${me.name} elkapta a patkányt. Vissza: ${back} tallér (benne ${CONFIG.RAT_BONUS} jutalom)`, 'good', { money: back, icon: 'hand-grabbing' });
     endEvent(Date.now());
   });
 
@@ -975,17 +976,17 @@ io.on('connection', socket => {
       const amount = it.type === 'coin' ? CONFIG.KANTIN_COIN : CONFIG.BONUS_COINS;
       addMoney(amount, me);
       game.items = game.items.filter(i => i !== it);
-      crew.emit('fx', { kind: 'pickup', id: it.id, x: it.x, y: it.y, to: me.id, text: `+${amount} 💰`, emoji: S.ITEMS[it.type].emoji });
+      crew.emit('fx', { kind: 'pickup', id: it.id, x: it.x, y: it.y, to: me.id, text: `+${amount}`, icon: S.ITEMS[it.type].icon });
       return;
     }
     const slot = me.items.indexOf(null);
     if (slot === -1) {
-      if (Date.now() - me.lastBubbleAt > 3000) { me.lastBubbleAt = Date.now(); setBubble(me, '🎒 Tele a hátizsák!', 1500); }
+      if (Date.now() - me.lastBubbleAt > 3000) { me.lastBubbleAt = Date.now(); setBubble(me, 'Tele a hátizsák!', 1500); }
       return;
     }
     me.items[slot] = it.type;
     game.items = game.items.filter(i => i !== it);
-    crew.emit('fx', { kind: 'pickup', id: it.id, x: it.x, y: it.y, to: me.id, text: S.ITEMS[it.type].name, emoji: S.ITEMS[it.type].emoji });
+    crew.emit('fx', { kind: 'pickup', id: it.id, x: it.x, y: it.y, to: me.id, text: S.ITEMS[it.type].name, icon: S.ITEMS[it.type].icon });
   });
 
   socket.on('useItem', slot => {
@@ -995,11 +996,11 @@ io.on('connection', socket => {
     me.items[slot] = null;
     if (type === 'drink') {
       me.boostUntil = Date.now() + CONFIG.DRINK_MS;
-      setBubble(me, '🥤 TURBÓÓÓÓ!', 2500);
+      setBubble(me, 'TURBÓÓÓ!', 2500);
     } else if (type === 'grenade') {
       for (const em of game.emergencies) em.expiresAt += CONFIG.GRENADE_SEC * 1000;
-      setBubble(me, '💣 Fagyasztás!', 2500);
-      toast(`💣 ${me.name} fagyasztó gránátot dobott! +${CONFIG.GRENADE_SEC} mp minden aktív riasztásra!`, 'info');
+      setBubble(me, 'Fagyasztás!', 2500);
+      toast(`${me.name} fagyasztó gránátot dobott: +${CONFIG.GRENADE_SEC} mp minden riasztásra.`, 'info', { icon: 'snowflake' });
     }
   });
 
@@ -1017,8 +1018,8 @@ io.on('connection', socket => {
     if (isSelf) {
       me.up[key]++;
       me.spentSelf += price;
-      setBubble(me, '💸 ÖNZŐ!', 5000);
-      crew.emit('snitch', { id: me.id, name: me.name, price, upgrade: def.emoji + ' ' + def.name + lvlText });
+      setBubble(me, 'ÖNZŐ!', 5000);
+      crew.emit('snitch', { id: me.id, name: me.name, price, upgrade: def.name + lvlText, icon: def.icon });
     } else {
       game.team[key]++;
       me.spentTeam += price;
@@ -1029,8 +1030,8 @@ io.on('connection', socket => {
       if (key === 'dilator') {
         for (const em of game.emergencies) { em.expiresAt += CONFIG.DILATOR_SEC_PER_LEVEL * 1000; em.duration += CONFIG.DILATOR_SEC_PER_LEVEL * 1000; }
       }
-      setBubble(me, '🤝 A csapatért!', 3000);
-      toast(`🤝 ${me.name} csapat-fejlesztést vett: ${def.emoji} ${def.name}${lvlText} (-${price} 💰)`, 'team');
+      setBubble(me, 'A csapatért!', 3000);
+      toast(`${me.name} csapat-fejlesztést vett: ${def.name}${lvlText} (-${price} tallér)`, 'team', { icon: def.icon });
     }
     socket.emit('buyResult', { ok: true, msg: `Megvetted: ${def.name}${lvlText}` });
   });
@@ -1048,7 +1049,7 @@ io.on('connection', socket => {
 
   socket.on('surrender', () => {
     if (!playing()) return;
-    toast(`🏳️ ${me.name} feladta a küldetést. Új kör jön!`, 'bad');
+    toast(`${me.name} feladta a küldetést.`, 'bad', { icon: 'flag' });
     endGame(false);
   });
 
@@ -1064,6 +1065,6 @@ io.on('connection', socket => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Csillagközi Műszak fut: http://0.0.0.0:${PORT}`);
-  console.log(PIN_FROM_ENV ? '🔒 PIN beállítva (GAME_PIN).' : `🔒 Generált PIN: ${GAME_PIN}  (állítsd be fixen: GAME_PIN=1234 npm start)`);
+  console.log(`Csillagközi Műszak fut: http://0.0.0.0:${PORT}`);
+  console.log(PIN_FROM_ENV ? 'PIN beállítva (GAME_PIN).' : `Generált PIN: ${GAME_PIN}  (fix PIN-hez: GAME_PIN=1234 npm start)`);
 });
